@@ -1,9 +1,8 @@
 # ============================================================
-# Full Binary L/R Training — runs all experiments end-to-end
+# Full Binary L/R — 21 motor channels
 # ============================================================
-# Usage: poetry run python train.py --config configs/full_binary.yaml
+# Usage: poetry run python train.py --config configs/full_binary_motor.yaml
 # ============================================================
-
 seed: 42
 
 data:
@@ -86,11 +85,28 @@ cv:
   quick_epochs: 30
 
 # ── EEGNet Grid Search ─────────────────────────────────────
+# Literature: EEGNet-4,2 and EEGNet-8,2 are standard configs
+# (Lawhern 2018). temp_kernel=32,64,80 cover half-second to
+# half-second+ receptive fields at 160Hz. Higher f1 with d=1
+# from Borra et al. 2020.
 eegnet_grid:
-  lr: [0.005, 0.001, 0.0005]
+  lr: [0.005, 0.001, 0.0005, 0.0001]
   dropout_rate: [0.25, 0.5]
-  f1: [8, 16]
-  d: [2, 4]
+  f1: [4, 8, 16]
+  d: [1, 2, 4]
+  temp_kernel: [32, 64, 80]
+
+# ── ShallowConvNet Grid Search ──────────────────────────────
+# Literature: Schirrmeister 2017 defaults are 40/40/25/75/15.
+# Lower filter counts for 21ch, wider temporal filters tested.
+shallow_grid:
+  n_filters_time: [20, 40, 60]
+  n_filters_spat: [20, 40]
+  filter_time_length: [15, 25, 35]
+  pool_time_length: [45, 75]
+  pool_time_stride: [15]
+  drop_prob: [0.25, 0.5]
+  lr: [0.001, 0.0005, 0.0001]
 
 # ── CSP + ML ───────────────────────────────────────────────
 csp_ml:
@@ -106,18 +122,25 @@ csp_ml:
     - "MLP"
 
 # ── Preprocessing Grid Search ──────────────────────────────
+# Literature: 0.5-45Hz outperformed 8-30Hz in Almeida 2022,
+# 4-38Hz used by Schirrmeister 2017, mu-only (8-12) and
+# beta-only (13-30) as ablations. Time windows: peak ERD at
+# 1-3s post-cue (Pfurtscheller 1999).
 preprocessing_grid:
   bandpass:
+    - [0.5, 45]
+    - [4, 38]
+    - [4, 40]
+    - [7, 30]
+    - [8, 30]
     - [8, 12]
     - [13, 30]
-    - [8, 30]
-    - [7, 30]
-    - [4, 40]
   time_window:
     - [0.0, 4.0]
     - [0.5, 3.5]
     - [0.5, 2.5]
     - [1.0, 3.0]
+    - [0.5, 4.0]
   baseline:
     - null
     - [null, 0]
@@ -127,6 +150,7 @@ run:
   single_run: true
   cross_validation: true
   eegnet_grid_search: true
+  shallow_grid_search: true
   csp_ml_grid: true
   preprocessing_grid: true
   joint_grid: true
@@ -137,4 +161,4 @@ output:
   save_dir: "outputs"
   save_model: true
   save_metadata: true
-  save_results_every_step: true   # dump JSON after every stage
+  save_results_every_step: true

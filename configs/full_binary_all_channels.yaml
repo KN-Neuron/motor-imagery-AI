@@ -1,9 +1,8 @@
 # ============================================================
-# Full Binary L/R Training — runs all experiments end-to-end
+# Full Binary L/R — all 64 channels
 # ============================================================
-# Usage: poetry run python train.py --config configs/full_binary.yaml
+# Usage: poetry run python train.py --config configs/full_binary_allch.yaml
 # ============================================================
-
 seed: 42
 
 data:
@@ -86,15 +85,30 @@ cv:
   quick_epochs: 30
 
 # ── EEGNet Grid Search ─────────────────────────────────────
+# 64ch: literature uses f1=8,d=2 (EEGNet-8,2) as standard,
+# and Nf=128 (f1=16,d=8) from Borra et al. for 64ch input.
+# Larger temp_kernels justified by more spatial info.
 eegnet_grid:
-  lr: [0.005, 0.001, 0.0005]
+  lr: [0.005, 0.001, 0.0005, 0.0001]
   dropout_rate: [0.25, 0.5]
-  f1: [8, 16]
-  d: [2, 4]
+  f1: [4, 8, 16]
+  d: [1, 2, 4]
+  temp_kernel: [32, 64, 80, 128]
+
+# ── ShallowConvNet Grid Search ──────────────────────────────
+# 64ch: higher spatial filter counts justified.
+shallow_grid:
+  n_filters_time: [20, 40, 60]
+  n_filters_spat: [20, 40, 60]
+  filter_time_length: [15, 25, 35]
+  pool_time_length: [45, 75]
+  pool_time_stride: [15]
+  drop_prob: [0.25, 0.5]
+  lr: [0.001, 0.0005, 0.0001]
 
 # ── CSP + ML ───────────────────────────────────────────────
 csp_ml:
-  csp_n_components: [4, 6, 8]
+  csp_n_components: [4, 6, 8, 10]
   csp_reg: "ledoit_wolf"
   models:
     - "LDA"
@@ -108,16 +122,19 @@ csp_ml:
 # ── Preprocessing Grid Search ──────────────────────────────
 preprocessing_grid:
   bandpass:
+    - [0.5, 45]
+    - [4, 38]
+    - [4, 40]
+    - [7, 30]
+    - [8, 30]
     - [8, 12]
     - [13, 30]
-    - [8, 30]
-    - [7, 30]
-    - [4, 40]
   time_window:
     - [0.0, 4.0]
     - [0.5, 3.5]
     - [0.5, 2.5]
     - [1.0, 3.0]
+    - [0.5, 4.0]
   baseline:
     - null
     - [null, 0]
@@ -127,6 +144,7 @@ run:
   single_run: true
   cross_validation: true
   eegnet_grid_search: true
+  shallow_grid_search: true
   csp_ml_grid: true
   preprocessing_grid: true
   joint_grid: true
@@ -137,4 +155,4 @@ output:
   save_dir: "outputs"
   save_model: true
   save_metadata: true
-  save_results_every_step: true   # dump JSON after every stage
+  save_results_every_step: true

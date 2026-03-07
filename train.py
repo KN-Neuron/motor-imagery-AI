@@ -22,28 +22,16 @@ import torch.nn as nn
 from sklearn.utils.class_weight import compute_class_weight
 
 from src.config import load_config
-from src.data import (
-    download_dataset,
-    load_raw_subjects,
-    epoch_subjects,
-    epoch_with_params,
-    subject_split,
-    make_dataloaders,
-    EEGDataset,
-)
+from src.data import (EEGDataset, download_dataset, epoch_subjects,
+                      epoch_with_params, load_raw_subjects, make_dataloaders,
+                      subject_split)
+from src.engine import cross_validate_subjects, eval_step, train
 from src.models import EEGNet
-from src.engine import train, eval_step, cross_validate_subjects
-from src.pipelines import run_csp_ml_grid, run_eegnet_grid, run_preprocessing_grid, run_joint_grid
-from src.utils import (
-    set_seeds,
-    get_device,
-    plot_training_curves,
-    plot_confusion_matrix,
-    print_evaluation,
-    save_model,
-    predict_with_model,
-    ResultsLogger,
-)
+from src.pipelines import (run_csp_ml_grid, run_eegnet_grid, run_joint_grid,
+                           run_preprocessing_grid, run_shallow_grid)
+from src.utils import (ResultsLogger, get_device, plot_confusion_matrix,
+                       plot_training_curves, predict_with_model,
+                       print_evaluation, save_model, set_seeds)
 
 
 def _make_loss_fn(y, device, weighted=True):
@@ -242,6 +230,37 @@ def main(config_path: str | None = None, overrides: dict | None = None):
         })
 
     # ════════════════════════════════════════════════════════
+    # STAGE 3.5: ShallowConvNet Grid Search
+    # ════════════════════════════════════════════════════════
+    if run_cfg.get("shallow_grid_search", False):
+        print("\n" + "=" * 60)
+        print("  STAGE 3.5: ShallowConvNet Grid Search")
+        print("=" * 60)
+
+        shallow_results = run_shallow_grid(
+            X_all[cv_mask], y_all[cv_mask], subjects_all[cv_mask],
+            param_grid=cfg.get("shallow_grid"),
+            chans=n_chans, classes=n_classes,
+            n_splits=cfg["cv"]["quick_splits"],
+            epochs_train=cfg["cv"]["quick_epochs"],
+            device=device,
+        )
+
+        for i, r in enumerate(shallow_results):
+            logger.log_stage(f"shallow_grid_combo_{i+1}", {
+                "mean_acc": r["mean_acc"], "std_acc": r["std_acc"],
+            }, extra={k: v for k, v in r.items() if k not in ("mean_acc", "std_acc")})
+
+        shallow_df = pd.DataFrame(shallow_results).sort_values("mean_acc", ascending=False)
+        best_shallow = shallow_df.iloc[0].to_dict()
+
+        logger.log_stage("shallow_grid_summary", {
+            "best_mean_acc": float(best_shallow["mean_acc"]),
+            "best_params": {k: v for k, v in best_shallow.items() if k not in ("mean_acc", "std_acc")},
+            "all_results": shallow_df.to_dict(orient="records"),
+        })
+
+    # ════════════════════════════════════════════════════════
     # STAGE 4: CSP + ML Grid Search
     # ════════════════════════════════════════════════════════
     if run_cfg.get("csp_ml_grid", True):
@@ -369,16 +388,36 @@ def main(config_path: str | None = None, overrides: dict | None = None):
                   loaders_final["test_loader"], opt, loss_fn, sched, device, epochs=100)
 
             preds, labels = predict_with_model(final_model, loaders_final["test_loader"], device)
+        elif best["model_type"] == "ShallowConvNet":
+            import re
+            m = re.search(r"ft=(\d+),fs=(\d+),do=([\d.]+),lr=([\d.]+)", best["model_name"])
+            ft, fs, do, lr = int(m.group(1)), int(m.group(2)), float(m.group(3)), float(m.group(4))
+
+            from src.models.shallow_convnet import ShallowConvNet
+            final_model = ShallowConvNet(
+                chans=n_chans, classes=n_classes, time_points=X_final.shape[2],
+                n_filters_time=ft, n_filters_spat=fs, drop_prob=do,
+            ).to(device)
+            opt = torch.optim.Adam(final_model.parameters(), lr=lr)
+            sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=100)
+            loss_fn = _make_loss_fn(y_trainval, device)
+
+            train(final_model, trainval_dl, loaders_final["test_loader"],
+                  loaders_final["test_loader"], opt, loss_fn, sched, device, epochs=100)
+
+            preds, labels = predict_with_model(final_model, loaders_final["test_loader"], device)
         else:
+            from mne.decoding import CSP
+            from sklearn.discriminant_analysis import \
+                LinearDiscriminantAnalysis
+            from sklearn.ensemble import (GradientBoostingClassifier,
+                                          RandomForestClassifier)
+            from sklearn.linear_model import LogisticRegression
+            from sklearn.neighbors import KNeighborsClassifier
+            from sklearn.neural_network import MLPClassifier
             from sklearn.pipeline import Pipeline
             from sklearn.preprocessing import StandardScaler
-            from mne.decoding import CSP
-            from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
             from sklearn.svm import SVC
-            from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-            from sklearn.neighbors import KNeighborsClassifier
-            from sklearn.linear_model import LogisticRegression
-            from sklearn.neural_network import MLPClassifier
 
             ml_name = best["model_name"].replace("CSP+", "")
             ml_map = {

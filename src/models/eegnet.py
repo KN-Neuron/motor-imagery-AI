@@ -73,7 +73,9 @@ class EEGNet(nn.Module):
 
         # Block 3: Separable convolution
         self.block3 = nn.Sequential(
-            nn.Conv2d(d * f1, d * f1, (1, 16), groups=d * f1, padding="same", bias=False),
+            nn.Conv2d(
+                d * f1, d * f1, (1, 16), groups=d * f1, padding="same", bias=False
+            ),
             nn.Conv2d(d * f1, f2, 1, bias=False),
             nn.BatchNorm2d(f2),
             nn.ELU(),
