@@ -111,6 +111,123 @@ training:
 | §19: Joint preprocessing × model search | `src/pipelines/grid_search.py` |
 | §20: FBCSP (stub) | `src/pipelines/fbcsp.py` |
 
+## Instrukcja jak dodawać nowe eksperymenty
+
+### 1. Nowy model (np. EEGConformer, ShallowConvNet)
+
+Stwórz plik `src/models/shallow_convnet.py` z klasą dziedziczącą po `nn.Module`:
+
+```python
+class ShallowConvNet(nn.Module):
+    def __init__(self, chans, classes, time_points, ...):
+        ...
+    def forward(self, x):
+        ...
+```
+
+Dodaj import w `src/models/__init__.py`:
+
+```python
+from src.models.shallow_convnet import ShallowConvNet
+```
+
+Potem w `train.py` w STAGE 1 (lub nowym STAGE) po prostu zamień `EEGNet(...)` na `ShallowConvNet(...)`. Reszta pipeline'u (loss, optimizer, `train()`, `predict_with_model()`) działa identycznie bo bierze `nn.Module`.
+
+### 2. Nowy klasyczny ML model (np. XGBoost)
+
+Wystarczy dodać wpis w `src/pipelines/csp_ml.py` w funkcji `get_ml_models()`:
+
+```python
+"XGBoost": {
+    "model": XGBClassifier(random_state=42, use_label_encoder=False, eval_metric="mlogloss"),
+    "params": {
+        "classifier__n_estimators": [100, 200],
+        "classifier__max_depth": [3, 5],
+        "classifier__learning_rate": [0.01, 0.1],
+        "csp__n_components": csp_components,
+    },
+},
+```
+
+I dodaj `"XGBoost"` do listy w YAML `csp_ml.models`. Pipeline CSP → Scaler → Classifier + GridSearchCV ogarnie resztę automatycznie.
+
+### 3. Nowy preprocessing (np. ICA, inny filtr)
+
+Edytuj `src/data/preprocessing.py` — dodaj krok w `epoch_subjects()`, albo stwórz nową funkcję np. `epoch_subjects_with_ica()`. Potem w `train.py` wywołaj ją zamiast `epoch_subjects()`.
+
+Albo jeśli chcesz to włączyć do grid searcha — dodaj parametr w `preprocessing_grid` w YAML i obsłuż go w `epoch_with_params()`.
+
+### 4. Nowy stage w train.py
+
+Schemat jest zawsze taki sam — wklej blok między istniejące STAGE'e:
+
+```python
+# ════════════════════════════════════════════════════════
+# STAGE X: Moja nowa rzecz
+# ════════════════════════════════════════════════════════
+if run_cfg.get("my_new_stage", False):
+    print("\n" + "=" * 60)
+    print("  STAGE X: Moja nowa rzecz")
+    print("=" * 60)
+
+    # ... twoja logika ...
+
+    logger.log_stage("my_new_stage", {
+        "accuracy": wynik,
+        "cokolwiek": inne_metryki,
+    })
+```
+
+I w YAML dodaj:
+
+```yaml
+run:
+  my_new_stage: true
+```
+
+Logger zapisze wynik do JSON natychmiast.
+
+### 5. Nowy config bez zmian w kodzie
+
+Najczęstszy case — chcesz sprawdzić inne hiperparametry. Zero zmian w Pythonie, robisz nowy YAML:
+
+```yaml
+# configs/experiment_wide_band.yaml
+preprocessing:
+  bandpass: [4.0, 40.0]
+training:
+  epochs: 150
+  lr: 0.0005
+eegnet:
+  f1: 16
+  d: 4
+  dropout_rate: 0.25
+run:
+  single_run: true
+  cross_validation: true
+  eegnet_grid_search: false    # skip — testujesz ręczne params
+  csp_ml_grid: false
+  preprocessing_grid: false
+  joint_grid: false
+  final_retrain: false
+```
+
+```bash
+poetry run python train.py --config configs/experiment_wide_band.yaml
+```
+
+Wynik ląduje w osobnym JSON z timestampem, nie nadpisuje poprzednich.
+
+### Podsumowanie flow'u
+
+```
+YAML config → train.py czyta run: → odpala włączone STAGE'e
+                                   → każdy STAGE używa modułów z src/
+                                   → każdy STAGE loguje do JSON przez ResultsLogger
+```
+
+Moduły są od siebie niezależne — `engine.py` nie wie nic o `csp_ml.py`, `EEGNet` nie wie nic o preprocessingu. `train.py` to jedyne miejsce które je klei razem.
+
 ## License
 
 MIT

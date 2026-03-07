@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import random
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -180,3 +181,94 @@ def predict_with_model(
             all_preds.extend(preds)
             all_labels.extend(y_batch.numpy())
     return np.array(all_preds), np.array(all_labels)
+
+
+# ── Results logger ───────────────────────────────────────────
+
+class ResultsLogger:
+    """
+    Incremental JSON logger — saves after every stage so nothing is lost
+    if a later stage crashes.
+
+    File name: ``{save_dir}/{timestamp}_{run_name}.json``
+
+    The JSON contains:
+      - config: full config dict used for this run
+      - stages: list of dicts, one per completed stage
+      - updated_at: ISO timestamp of last write
+    """
+
+    def __init__(self, cfg: dict, save_dir: str | Path = "outputs", run_name: str | None = None):
+        self.save_dir = Path(save_dir)
+        self.save_dir.mkdir(parents=True, exist_ok=True)
+
+        self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        if run_name is None:
+            task = cfg.get("task", {}).get("mode", "unknown")
+            ch = cfg.get("channels", {}).get("mode", "unknown")
+            run_name = f"{task}_{ch}"
+
+        self.filename = self.save_dir / f"{self.timestamp}_{run_name}.json"
+
+        self.data = {
+            "run_name": run_name,
+            "created_at": self.timestamp,
+            "updated_at": self.timestamp,
+            "config": _make_serializable(cfg),
+            "stages": [],
+        }
+        self._write()
+        print(f"Results logger → {self.filename}")
+
+    def log_stage(
+        self,
+        stage_name: str,
+        metrics: dict[str, Any],
+        extra: dict[str, Any] | None = None,
+    ) -> None:
+        """
+        Append a completed stage and flush to disk immediately.
+
+        Parameters
+        ----------
+        stage_name : str
+            e.g. "single_run", "cv_fold_3", "eegnet_grid", "csp_ml_SVM"
+        metrics : dict
+            e.g. {"train_acc": 0.82, "val_acc": 0.75, "test_acc": 0.73}
+        extra : dict, optional
+            Any additional info (hyperparams, fold details, etc.)
+        """
+        entry = {
+            "stage": stage_name,
+            "timestamp": datetime.now().isoformat(),
+            "metrics": _make_serializable(metrics),
+        }
+        if extra:
+            entry["details"] = _make_serializable(extra)
+
+        self.data["stages"].append(entry)
+        self.data["updated_at"] = datetime.now().isoformat()
+        self._write()
+
+    def _write(self) -> None:
+        with open(self.filename, "w") as f:
+            json.dump(self.data, f, indent=2, default=str)
+
+
+def _make_serializable(obj: Any) -> Any:
+    """Recursively convert numpy/torch types to JSON-safe Python types."""
+    if isinstance(obj, dict):
+        return {k: _make_serializable(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [_make_serializable(v) for v in obj]
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, (np.bool_,)):
+        return bool(obj)
+    elif isinstance(obj, set):
+        return sorted(list(obj))
+    return obj
