@@ -1,8 +1,8 @@
 [tool.poetry]
-name = "hex-o-spell"
+name = "motor-imagery-ai"
 version = "0.1.0"
-description = "EEG-based classification using PyTorch and sklearn"
-authors = ["Your Team <team@example.com>"]
+description = "EEG Motor Imagery classification — EEGNet, CSP+ML, two-stage gating"
+authors = ["KN Neuron <neuron@knneuron.pl>"]
 license = "MIT"
 package-mode = false
 
@@ -16,6 +16,9 @@ matplotlib = "^3.8.0"
 seaborn = "^0.13.0"
 scipy = "^1.14.0"
 mne = "^1.9.0"
+tqdm = "^4.66.0"
+pyyaml = "^6.0"
+kagglehub = "^0.3.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.0"
@@ -24,6 +27,7 @@ black = "^24.0.0"
 flake8 = "^7.0.0"
 jupyter = "^1.1.1"
 mypy = "^1.8.0"
+ruff = "^0.4.0"
 
 [build-system]
 requires = ["poetry-core"]
@@ -32,6 +36,13 @@ build-backend = "poetry.core.masonry.api"
 [tool.black]
 line-length = 88
 target-version = ['py312']
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -57,4 +68,3 @@ omit = [
 python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = true

@@ -1,98 +1,116 @@
-# Hex-O-Spell: EEG Classification Project
+# MindStride — EEG Motor Imagery Classification
 
-This project implements EEG-based classification using PyTorch and scikit-learn.
+Modular Python pipeline for classifying left-hand / right-hand / rest motor imagery from the [PhysioNet EEG Motor Movement/Imagery Dataset](https://physionet.org/content/eegmmidb/1.0.0/) (109 subjects, 64-channel EEG, 160 Hz).
 
-## Features
+Developed by **KN Neuron** — Neuroinformatics Student Research Group, Wrocław University of Technology.
 
-- EEG data preprocessing pipeline
-- Neural network classification models
-- Standardized preprocessing with scikit-learn
-- PyTorch-based deep learning models
-- Comprehensive testing suite
+## Project Structure
 
-## Installation
+```
+motor-imagery-AI/
+├── configs/
+│   └── default.yaml                # all hyperparameters in one place
+├── src/
+│   ├── __init__.py
+│   ├── config.py                   # YAML loading & merging
+│   ├── engine.py                   # train_step, eval_step, train loop, CV
+│   ├── utils.py                    # plotting, seeding, model save/load
+│   ├── data/
+│   │   ├── __init__.py
+│   │   ├── loader.py               # download dataset, read EDF files
+│   │   ├── preprocessing.py        # epoching, filtering, normalization
+│   │   ├── dataset.py              # PyTorch EEGDataset
+│   │   └── splitter.py             # subject-based split, DataLoaders
+│   ├── models/
+│   │   ├── __init__.py
+│   │   └── eegnet.py               # EEGNet architecture
+│   └── pipelines/
+│       ├── __init__.py
+│       ├── csp_ml.py               # CSP + classical ML grid search
+│       ├── two_stage.py            # mu-wave gating + binary EEGNet
+│       ├── grid_search.py          # EEGNet / preprocessing / joint grids
+│       └── fbcsp.py                # FBCSP stub (TODO)
+├── notebooks/
+│   └── experiments.ipynb           # interactive notebook importing modules
+├── tests/
+│   └── ...                         # pytest suite
+├── train.py                        # CLI entry point
+├── pyproject.toml                  # Poetry config
+├── requirements.txt
+└── requirements-dev.txt
+```
 
-1. Clone the repository
-2. Install the dependencies using Poetry:
+## Quick Start
 
 ```bash
+# Install with Poetry
 poetry install
+
+# Or with pip
+pip install -r requirements.txt
+
+# Train with default config
+python train.py
+
+# Train with custom config
+python train.py --config configs/my_experiment.yaml
 ```
 
-To install development dependencies as well:
+## Usage from Notebook
 
-```bash
-poetry install --with dev
+```python
+from src.config import load_config
+from src.data import download_dataset, load_raw_subjects, epoch_subjects, subject_split, make_dataloaders
+from src.models import EEGNet
+from src.engine import train, cross_validate_subjects
+from src.pipelines import run_csp_ml_grid, run_preprocessing_grid, run_joint_grid
+from src.utils import set_seeds, get_device, plot_training_curves, plot_confusion_matrix
+
+cfg = load_config()
+set_seeds(cfg["seed"])
+device = get_device()
+
+subjects_data = download_dataset()
+raw_data = load_raw_subjects(subjects_data, cache_dir="cache")
+X, y, subjects, _ = epoch_subjects(raw_data, event_id={"left_hand": 2, "right_hand": 3},
+                                    channels=cfg["channels"]["motor_channels"],
+                                    label_offset=2)
+split = subject_split(X, y, subjects)
+loaders = make_dataloaders(split)
+model = EEGNet(chans=21, classes=2, time_points=X.shape[2]).to(device)
 ```
 
-## Usage
+## Configuration
 
-Run the main training script:
+All hyperparameters live in `configs/default.yaml`. Override any field with a partial YAML:
 
-```bash
-poetry run python src/train.py
+```yaml
+# configs/quick_debug.yaml
+data:
+  n_subjects: 10
+  cache_dir: cache
+training:
+  epochs: 5
 ```
 
-## Testing
+## Notebook → Module Mapping
 
-This project includes a comprehensive testing suite using pytest. To run the tests:
+| Notebook Section | Module |
+|---|---|
+| §1–4: Data loading, EDA | `src/data/loader.py` |
+| §4: Preprocessing & epoching | `src/data/preprocessing.py` |
+| §5–6: Split & DataLoaders | `src/data/splitter.py`, `src/data/dataset.py` |
+| §7: EEGNet | `src/models/eegnet.py` |
+| §8: Training engine | `src/engine.py` |
+| §9–12: Single run, CV, grid search | `src/engine.py`, `src/pipelines/grid_search.py` |
+| §13–14: CSP + classical ML | `src/pipelines/csp_ml.py` |
+| §15: Motor cortex channels | Same modules, different config |
+| §16: Two-stage mu-wave gating | `src/pipelines/two_stage.py` |
+| §17: Binary L/R pipeline | Same modules, `task.mode: binary` |
+| §18: Preprocessing grid search | `src/pipelines/grid_search.py` |
+| §19: Joint preprocessing × model search | `src/pipelines/grid_search.py` |
+| §20: FBCSP (stub) | `src/pipelines/fbcsp.py` |
 
-1. Run all tests:
+## License
 
-```bash
-poetry run pytest
-```
-
-2. Run tests with coverage:
-
-```bash
-poetry run pytest --cov=src --cov-report=html
-```
-
-3. Run specific test files:
-
-```bash
-poetry run pytest tests/test_models.py
-poetry run pytest tests/test_preprocessing.py
-poetry run pytest tests/test_integration.py
-```
-
-4. Run tests with verbose output:
-
-```bash
-poetry run pytest -v
-```
-
-### Test Structure
-
-- `tests/test_basic.py`: Basic functionality tests
-- `tests/test_models.py`: Tests for the EEG classification models
-- `tests/test_preprocessing.py`: Tests for the EEG preprocessing pipeline
-- `tests/test_integration.py`: Integration tests for the full pipeline
-- `tests/conftest.py`: Test fixtures and configuration
-
-### Code Quality
-
-The project uses the following tools for code quality:
-
-- `black` for code formatting
-- `flake8` for linting
-- `mypy` for static type checking
-
-Run code formatting:
-
-```bash
-poetry run black src/ tests/
-```
-
-Run linting:
-
-```bash
-poetry run flake8 src/ tests/
-```
-
-Run type checking:
-
-```bash
-poetry run mypy src/
-```
+MIT
