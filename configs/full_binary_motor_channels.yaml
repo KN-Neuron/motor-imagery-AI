@@ -128,6 +128,7 @@ csp_ml:
 # 1-3s post-cue (Pfurtscheller 1999).
 preprocessing_grid:
   bandpass:
+    - [0.0, 49]
     - [0.5, 45]
     - [4, 38]
     - [4, 40]

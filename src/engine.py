@@ -1,8 +1,9 @@
 """
 Training engine — train_step, eval_step, train loop, cross-validation.
 
-This consolidates the training logic that was duplicated across
-sections 8, 10, 15, 17, 18, and 19 of the original notebook.
+Fixes vs original:
+  - Per-sample accuracy (not per-batch average)
+  - CosineAnnealingLR in cross_validate_subjects
 """
 
 from __future__ import annotations
@@ -29,9 +30,9 @@ def train_step(
     optimizer: torch.optim.Optimizer,
     device: str,
 ) -> tuple[float, float]:
-    """Single training epoch. Returns (loss, accuracy)."""
+    """Single training epoch. Returns (loss, accuracy) per-sample."""
     model.train()
-    total_loss, total_acc = 0.0, 0.0
+    total_loss, total_correct, total_samples = 0.0, 0, 0
 
     for X, y in dataloader:
         X, y = X.to(device), y.to(device)
@@ -42,11 +43,11 @@ def train_step(
         loss.backward()
         optimizer.step()
 
-        total_loss += loss.item()
-        total_acc += (y_pred.argmax(dim=1) == y).sum().item() / len(y)
+        total_loss += loss.item() * len(y)
+        total_correct += (y_pred.argmax(dim=1) == y).sum().item()
+        total_samples += len(y)
 
-    n = len(dataloader)
-    return total_loss / n, total_acc / n
+    return total_loss / total_samples, total_correct / total_samples
 
 
 def eval_step(
@@ -55,9 +56,9 @@ def eval_step(
     loss_fn: nn.Module,
     device: str,
 ) -> tuple[float, float]:
-    """Single evaluation pass. Returns (loss, accuracy)."""
+    """Single evaluation pass. Returns (loss, accuracy) per-sample."""
     model.eval()
-    total_loss, total_acc = 0.0, 0.0
+    total_loss, total_correct, total_samples = 0.0, 0, 0
 
     with torch.inference_mode():
         for X, y in dataloader:
@@ -65,11 +66,11 @@ def eval_step(
             logits = model(X)
             loss = loss_fn(logits, y)
 
-            total_loss += loss.item()
-            total_acc += (logits.argmax(dim=1) == y).sum().item() / len(y)
+            total_loss += loss.item() * len(y)
+            total_correct += (logits.argmax(dim=1) == y).sum().item()
+            total_samples += len(y)
 
-    n = len(dataloader)
-    return total_loss / n, total_acc / n
+    return total_loss / total_samples, total_correct / total_samples
 
 
 def train(
@@ -85,15 +86,11 @@ def train(
     verbose: bool = True,
 ) -> tuple[dict[str, list[float]], float]:
     """
-    Full training loop with best-model checkpointing.
+    Full training loop with best-model checkpointing on val set.
 
-    Parameters
-    ----------
     Returns
     -------
-    results : dict
-        Training history with keys: train_loss, train_acc, val_loss, val_acc,
-        test_loss, test_acc.
+    results : dict with train_loss, train_acc, val_loss, val_acc, test_loss, test_acc
     best_val_acc : float
     """
     results: dict[str, list[float]] = {
@@ -164,13 +161,7 @@ def cross_validate_subjects(
     """
     Subject-based K-Fold cross-validation for EEGNet.
 
-    Parameters
-    ----------
-    Returns
-    -------
-    fold_results : list of float
-        Per-fold best validation accuracies.
-    mean_acc, std_acc : float
+    Now includes CosineAnnealingLR scheduler for consistency with training.
     """
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -196,6 +187,7 @@ def cross_validate_subjects(
             f1=f1, f2=f2, d=d, dropout_rate=dropout_rate, temp_kernel=temp_kernel,
         ).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
         fold_weights = compute_class_weight("balanced", classes=np.unique(y_tr), y=y_tr)
         loss_fn = nn.CrossEntropyLoss(
@@ -205,6 +197,7 @@ def cross_validate_subjects(
         best_val_acc = 0.0
         for epoch in range(epochs):
             train_step(model, train_dl, loss_fn, optimizer, device)
+            scheduler.step()
             _, val_acc = eval_step(model, val_dl, loss_fn, device)
             if val_acc > best_val_acc:
                 best_val_acc = val_acc
@@ -233,13 +226,7 @@ def cv_for_preprocessing(
     classes: int = 2,
     device: str | None = None,
 ) -> tuple[float, float]:
-    """
-    Lightweight CV for preprocessing grid search (no verbose, fewer epochs).
-
-    Returns
-    -------
-    mean_acc, std_acc : float
-    """
+    """Lightweight CV for preprocessing grid search."""
     _, mean_acc, std_acc = cross_validate_subjects(
         X, y, subjects,
         n_splits=n_splits, epochs=epochs, lr=lr,

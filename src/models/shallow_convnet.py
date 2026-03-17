@@ -32,6 +32,8 @@ class ShallowConvNet(nn.Module):
         )
 
     def forward(self, x):
-        if x.dim() == 3:
-            x = x.unsqueeze(1)  # (B, C, T) → (B, 1, C, T)
+        # ShallowFBCSPNet expects (B, C, T) — 3D input
+        # It does its own Ensure4d + Rearrange internally
+        if x.dim() == 4:
+            x = x.squeeze(1)  # (B, 1, C, T) → (B, C, T)
         return self.model(x)

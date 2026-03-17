@@ -5,6 +5,11 @@ MindStride — CLI entry point.
 Runs all enabled stages (single run, CV, grid searches, final retrain)
 and saves results to JSON after every stage.
 
+Fixes vs original:
+  - Preprocessing grid receives only CV subjects (test excluded)
+  - Final retrain uses val split for model selection (not test set)
+  - Bad subjects excluded via loading module
+
 Usage:
     python train.py                                    # default config
     python train.py --config configs/full_binary.yaml  # full pipeline
@@ -95,7 +100,7 @@ def main(config_path: str | None = None, overrides: dict | None = None):
         tmax=pp["tmax"],
         baseline=tuple(pp["baseline"]) if pp["baseline"] else None,
         normalize=pp["normalize"],
-        balance=pp["balance_classes"],
+        balance=False,  # FIX: balance per-split, not globally
         label_offset=label_offset,
         seed=cfg["seed"],
     )
@@ -108,12 +113,13 @@ def main(config_path: str | None = None, overrides: dict | None = None):
         "skipped_subjects": skipped,
     })
 
-    # ── Split ───────────────────────────────────────────────
+    # ── Split (with per-split balancing) ────────────────────
     split = subject_split(
         X_all, y_all, subjects_all,
         train_ratio=cfg["split"]["train_ratio"],
         val_ratio=cfg["split"]["val_ratio"],
         seed=cfg["seed"],
+        balance=pp.get("balance_classes", True),
     )
     loaders = make_dataloaders(split, batch_size=cfg["dataloader"]["batch_size"])
     cv_mask = split["train_mask"] | split["val_mask"]
@@ -301,8 +307,12 @@ def main(config_path: str | None = None, overrides: dict | None = None):
         print("  STAGE 5: Preprocessing Grid Search")
         print("=" * 60)
 
+        # FIX: only CV subjects — test subjects excluded
+        cv_subjects = split["train_subjects"] | split["val_subjects"]
+        raw_data_cv = {s: raw_data[s] for s in raw_data if s in cv_subjects}
+
         preproc_df = run_preprocessing_grid(
-            raw_data, preprocessing_grid=cfg["preprocessing_grid"],
+            raw_data_cv, preprocessing_grid=cfg["preprocessing_grid"],
             channels=channels, task_mode=task["mode"],
             n_splits=cfg["cv"]["quick_splits"], epochs=cfg["cv"]["quick_epochs"],
             chans=n_chans, classes=n_classes, seed=cfg["seed"], device=device,
@@ -327,7 +337,7 @@ def main(config_path: str | None = None, overrides: dict | None = None):
 
         top_preproc = preproc_df.head(5)
         joint_df = run_joint_grid(
-            raw_data, top_preproc, channels=channels, task_mode=task["mode"],
+            raw_data_cv, top_preproc, channels=channels, task_mode=task["mode"],
             chans=n_chans, classes=n_classes,
             n_splits=cfg["cv"]["quick_splits"], eegnet_epochs=cfg["cv"]["quick_epochs"],
             seed=cfg["seed"], device=device,
@@ -360,14 +370,9 @@ def main(config_path: str | None = None, overrides: dict | None = None):
             channels=channels, task_mode=task["mode"], seed=cfg["seed"],
         )
 
-        split_final = subject_split(X_final, y_final, subj_final, seed=cfg["seed"])
+        split_final = subject_split(X_final, y_final, subj_final, seed=cfg["seed"],
+                                    balance=pp.get("balance_classes", True))
         loaders_final = make_dataloaders(split_final, batch_size=64)
-
-        X_trainval = np.concatenate([split_final["X_train"], split_final["X_val"]])
-        y_trainval = np.concatenate([split_final["y_train"], split_final["y_val"]])
-
-        from torch.utils.data import DataLoader
-        trainval_dl = DataLoader(EEGDataset(X_trainval, y_trainval), batch_size=64, shuffle=True)
 
         final_model = None
 
@@ -382,9 +387,10 @@ def main(config_path: str | None = None, overrides: dict | None = None):
             ).to(device)
             opt = torch.optim.Adam(final_model.parameters(), lr=lr)
             sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=100)
-            loss_fn = _make_loss_fn(y_trainval, device)
+            loss_fn = _make_loss_fn(split_final["y_train"], device)
 
-            train(final_model, trainval_dl, loaders_final["test_loader"],
+            # FIX: use val_loader for model selection, test_loader only for final eval
+            train(final_model, loaders_final["train_loader"], loaders_final["val_loader"],
                   loaders_final["test_loader"], opt, loss_fn, sched, device, epochs=100)
 
             preds, labels = predict_with_model(final_model, loaders_final["test_loader"], device)
@@ -400,9 +406,10 @@ def main(config_path: str | None = None, overrides: dict | None = None):
             ).to(device)
             opt = torch.optim.Adam(final_model.parameters(), lr=lr)
             sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=100)
-            loss_fn = _make_loss_fn(y_trainval, device)
+            loss_fn = _make_loss_fn(split_final["y_train"], device)
 
-            train(final_model, trainval_dl, loaders_final["test_loader"],
+            # FIX: use val_loader for model selection, test_loader only for final eval
+            train(final_model, loaders_final["train_loader"], loaders_final["val_loader"],
                   loaders_final["test_loader"], opt, loss_fn, sched, device, epochs=100)
 
             preds, labels = predict_with_model(final_model, loaders_final["test_loader"], device)
@@ -418,6 +425,9 @@ def main(config_path: str | None = None, overrides: dict | None = None):
             from sklearn.pipeline import Pipeline
             from sklearn.preprocessing import StandardScaler
             from sklearn.svm import SVC
+
+            X_trainval = np.concatenate([split_final["X_train"], split_final["X_val"]])
+            y_trainval = np.concatenate([split_final["y_train"], split_final["y_val"]])
 
             ml_name = best["model_name"].replace("CSP+", "")
             ml_map = {

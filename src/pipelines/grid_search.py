@@ -1,7 +1,9 @@
 """
 Grid search pipelines — EEGNet hyperparameters, preprocessing, and joint search.
 
-Consolidates sections 11, 15.8, 17.8, 18, and 19 of the original notebook.
+Fixes vs original:
+  - run_preprocessing_grid accepts cv_raw_data (caller must filter test subjects)
+  - Removed self-import of run_shallow_grid in run_joint_grid
 """
 
 from __future__ import annotations
@@ -109,6 +111,7 @@ def run_shallow_grid(
 
     return results
 
+
 def run_eegnet_grid(
     X: np.ndarray,
     y: np.ndarray,
@@ -121,18 +124,7 @@ def run_eegnet_grid(
     device: str | None = None,
     verbose: bool = True,
 ) -> list[dict[str, Any]]:
-    """
-    EEGNet hyperparameter grid search with subject-based CV.
-
-    Parameters
-    ----------
-    param_grid : dict, optional
-        Override default grid ``{lr, dropout_rate, f1, d}``.
-
-    Returns
-    -------
-    list of dicts with {params, f2, mean_acc, std_acc}
-    """
+    """EEGNet hyperparameter grid search with subject-based CV."""
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -212,15 +204,10 @@ def run_preprocessing_grid(
     verbose: bool = True,
 ) -> pd.DataFrame:
     """
-    Run preprocessing hyperparameter grid search (section 18).
+    Run preprocessing hyperparameter grid search.
 
-    Parameters
-    ----------
-    preprocessing_grid : dict with keys: bandpass, time_window, baseline
-
-    Returns
-    -------
-    DataFrame sorted by mean_acc (descending).
+    IMPORTANT: Caller must pass only CV subjects in raw_data
+    (test subjects must be filtered out before calling this).
     """
     results = []
     combos = list(itertools.product(
@@ -297,18 +284,9 @@ def run_joint_grid(
     verbose: bool = True,
 ) -> pd.DataFrame:
     """
-    Joint preprocessing × model grid search (section 19).
+    Joint preprocessing × model grid search.
 
-    Runs both EEGNet grid and CSP+ML grid for each top preprocessing combo.
-
-    Parameters
-    ----------
-    top_preproc : DataFrame
-        Top-N rows from ``run_preprocessing_grid()``.
-
-    Returns
-    -------
-    DataFrame sorted by mean_acc (descending).
+    IMPORTANT: Caller must pass only CV subjects in raw_data.
     """
     all_results = []
 
@@ -374,10 +352,10 @@ def run_joint_grid(
                 "tmax": pp_row["tmax"],
                 "baseline": pp_row["baseline"],
                 "mean_acc": r["best_cv_acc"],
-                "std_acc": 0.0,  # GridSearchCV doesn't give per-fold std easily
+                "std_acc": 0.0,
             })
 
-        from src.pipelines.grid_search import run_shallow_grid
+        # --- ShallowConvNet grid ---
         shallow_results = run_shallow_grid(
             X, y, subjects,
             chans=chans, classes=classes,

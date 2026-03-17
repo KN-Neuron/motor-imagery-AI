@@ -11,15 +11,14 @@ from torch.utils.data import Dataset
 
 class EEGDataset(Dataset):
     """
-    Wraps numpy arrays (n_samples, n_channels, n_timepoints) into a
-    PyTorch Dataset with optional Gaussian noise + time-shift augmentation.
+    EEG dataset wrapping numpy arrays as torch tensors.
 
     Parameters
     ----------
-    X : np.ndarray, shape (n_samples, n_channels, n_timepoints)
-    y : np.ndarray, shape (n_samples,)
+    X : np.ndarray, shape (n_epochs, n_channels, n_timepoints)
+    y : np.ndarray, shape (n_epochs,)
     augment : bool
-        If True, add Gaussian noise (σ=0.1) and random time shift (±20 samples).
+        If True, apply Gaussian noise + random time shift.
     """
 
     def __init__(self, X: np.ndarray, y: np.ndarray, augment: bool = False):
@@ -35,9 +34,11 @@ class EEGDataset(Dataset):
         y = self.y[idx]
 
         if self.augment:
-            noise = torch.randn_like(x) * 0.1
-            x = x + noise
-            shift = np.random.randint(-20, 21)
-            x = torch.roll(x, shifts=shift, dims=-1)
+            x = x + torch.randn_like(x) * 0.1
+            shift = torch.randint(-20, 21, (1,)).item()
+            if shift > 0:
+                x = torch.cat([torch.zeros_like(x[:, :shift]), x[:, :-shift]], dim=-1)
+            elif shift < 0:
+                x = torch.cat([x[:, -shift:], torch.zeros_like(x[:, :(-shift)])], dim=-1)
 
         return x, y
