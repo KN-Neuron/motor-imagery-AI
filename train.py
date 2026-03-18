@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MindStride — CLI entry point (FIXED v2, 4-way split).
+Brainboard — CLI entry point (FIXED v2, 4-way split).
 
 4-way subject split:
   - TRAIN  (60%) — gradient descent, backprop
