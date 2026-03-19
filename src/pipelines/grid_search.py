@@ -279,6 +279,9 @@ def run_joint_grid(
     classes: int = 2,
     n_splits: int = 3,
     eegnet_epochs: int = 30,
+    include_eegnet: bool = True,
+    include_csp_ml: bool = True,
+    include_shallow: bool = True,
     seed: int = 42,
     device: str | None = None,
     verbose: bool = True,
@@ -312,69 +315,72 @@ def run_joint_grid(
             seed=seed,
         )
 
-        # --- EEGNet grid ---
-        eegnet_results = run_eegnet_grid(
-            X, y, subjects,
-            chans=chans, classes=classes,
-            n_splits=n_splits, epochs_train=eegnet_epochs,
-            device=device, verbose=verbose,
-        )
-        for r in eegnet_results:
-            all_results.append({
-                "model_name": f"EEGNet(f1={r['f1']},d={r['d']},do={r['dropout_rate']},lr={r['lr']})",
-                "model_type": "EEGNet",
-                "preproc": preproc_label,
-                "low_freq": pp_row["low_freq"],
-                "high_freq": pp_row["high_freq"],
-                "tmin": pp_row["tmin"],
-                "tmax": pp_row["tmax"],
-                "baseline": pp_row["baseline"],
-                "mean_acc": r["mean_acc"],
-                "std_acc": r["std_acc"],
-            })
+        if include_eegnet:
+            # --- EEGNet grid ---
+            eegnet_results = run_eegnet_grid(
+                X, y, subjects,
+                chans=chans, classes=classes,
+                n_splits=n_splits, epochs_train=eegnet_epochs,
+                device=device, verbose=verbose,
+            )
+            for r in eegnet_results:
+                all_results.append({
+                    "model_name": f"EEGNet(f1={r['f1']},d={r['d']},do={r['dropout_rate']},lr={r['lr']})",
+                    "model_type": "EEGNet",
+                    "preproc": preproc_label,
+                    "low_freq": pp_row["low_freq"],
+                    "high_freq": pp_row["high_freq"],
+                    "tmin": pp_row["tmin"],
+                    "tmax": pp_row["tmax"],
+                    "baseline": pp_row["baseline"],
+                    "mean_acc": r["mean_acc"],
+                    "std_acc": r["std_acc"],
+                })
 
-        # --- CSP + ML grid ---
-        from src.pipelines.csp_ml import run_csp_ml_grid
-        ml_results = run_csp_ml_grid(
-            X, y, subjects,
-            task_mode=task_mode,
-            n_splits=n_splits,
-            verbose=verbose,
-        )
-        for r in ml_results:
-            all_results.append({
-                "model_name": f"CSP+{r['model']}",
-                "model_type": "CSP+ML",
-                "preproc": preproc_label,
-                "low_freq": pp_row["low_freq"],
-                "high_freq": pp_row["high_freq"],
-                "tmin": pp_row["tmin"],
-                "tmax": pp_row["tmax"],
-                "baseline": pp_row["baseline"],
-                "mean_acc": r["best_cv_acc"],
-                "std_acc": 0.0,
-            })
+        if include_csp_ml:
+            # --- CSP + ML grid ---
+            from src.pipelines.csp_ml import run_csp_ml_grid
+            ml_results = run_csp_ml_grid(
+                X, y, subjects,
+                task_mode=task_mode,
+                n_splits=n_splits,
+                verbose=verbose,
+            )
+            for r in ml_results:
+                all_results.append({
+                    "model_name": f"CSP+{r['model']}",
+                    "model_type": "CSP+ML",
+                    "preproc": preproc_label,
+                    "low_freq": pp_row["low_freq"],
+                    "high_freq": pp_row["high_freq"],
+                    "tmin": pp_row["tmin"],
+                    "tmax": pp_row["tmax"],
+                    "baseline": pp_row["baseline"],
+                    "mean_acc": r["best_cv_acc"],
+                    "std_acc": 0.0,
+                })
 
-        # --- ShallowConvNet grid ---
-        shallow_results = run_shallow_grid(
-            X, y, subjects,
-            chans=chans, classes=classes,
-            n_splits=n_splits, epochs_train=eegnet_epochs,
-            device=device, verbose=verbose,
-        )
-        for r in shallow_results:
-            all_results.append({
-                "model_name": f"Shallow(ft={r['n_filters_time']},fs={r['n_filters_spat']},do={r['drop_prob']},lr={r['lr']})",
-                "model_type": "ShallowConvNet",
-                "preproc": preproc_label,
-                "low_freq": pp_row["low_freq"],
-                "high_freq": pp_row["high_freq"],
-                "tmin": pp_row["tmin"],
-                "tmax": pp_row["tmax"],
-                "baseline": pp_row["baseline"],
-                "mean_acc": r["mean_acc"],
-                "std_acc": r["std_acc"],
-            })
+        if include_shallow:
+            # --- ShallowConvNet grid ---
+            shallow_results = run_shallow_grid(
+                X, y, subjects,
+                chans=chans, classes=classes,
+                n_splits=n_splits, epochs_train=eegnet_epochs,
+                device=device, verbose=verbose,
+            )
+            for r in shallow_results:
+                all_results.append({
+                    "model_name": f"Shallow(ft={r['n_filters_time']},fs={r['n_filters_spat']},do={r['drop_prob']},lr={r['lr']})",
+                    "model_type": "ShallowConvNet",
+                    "preproc": preproc_label,
+                    "low_freq": pp_row["low_freq"],
+                    "high_freq": pp_row["high_freq"],
+                    "tmin": pp_row["tmin"],
+                    "tmax": pp_row["tmax"],
+                    "baseline": pp_row["baseline"],
+                    "mean_acc": r["mean_acc"],
+                    "std_acc": r["std_acc"],
+                })
 
     df = pd.DataFrame(all_results)
     return df.sort_values("mean_acc", ascending=False).reset_index(drop=True)

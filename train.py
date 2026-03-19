@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Brainboard — CLI entry point (FIXED v2, 4-way split).
+MindStride — CLI entry point (FIXED v2, 4-way split).
 
 4-way subject split:
   - TRAIN  (60%) — gradient descent, backprop
@@ -53,6 +53,8 @@ import pandas as pd
 import torch
 import torch.nn as nn
 from sklearn.utils.class_weight import compute_class_weight
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from src.config import load_config
 from src.data import (EEGDataset, download_dataset, epoch_subjects,
@@ -67,10 +69,6 @@ from src.pipelines import (run_csp_ml_grid, run_eegnet_grid, run_joint_grid,
 from src.utils import (ResultsLogger, get_device, plot_confusion_matrix,
                        plot_training_curves, predict_with_model,
                        print_evaluation, save_model, set_seeds)
-
-from torch.utils.data import DataLoader
-from tqdm import tqdm
-
 
 # ═══════════════════════════════════════════════════════════════════
 # Train loop — NO test/dev/holdout access
@@ -141,7 +139,7 @@ def preprocess_split(
     X, y, subjects, _ = epoch_subjects(
         raw_subset, event_id=event_id, channels=channels,
         low_freq=low_freq, high_freq=high_freq, tmin=tmin, tmax=tmax,
-        baseline=baseline, normalize=True, balance=False,
+        baseline=baseline, normalize=False, balance=False,
         label_offset=label_offset, seed=seed)
     if balance and len(X) > 0:
         X, y, subjects = _balance_array(X, y, subjects, seed=seed)
@@ -439,6 +437,9 @@ def main(config_path: str | None = None, overrides: dict | None = None):
             raw_data_cv, preproc_df.head(5), channels=channels, task_mode=task["mode"],
             chans=n_chans, classes=n_classes,
             n_splits=cfg["cv"]["quick_splits"], eegnet_epochs=cfg["cv"]["quick_epochs"],
+            include_eegnet=run_cfg.get("eegnet_grid_search", True),
+            include_csp_ml=run_cfg.get("csp_ml_grid", True),
+            include_shallow=run_cfg.get("shallow_grid_search", False),
             seed=cfg["seed"], device=device)
         for i, row in joint_df.iterrows():
             logger.log_stage(f"joint_combo_{i+1}", row.to_dict())
@@ -482,7 +483,9 @@ def main(config_path: str | None = None, overrides: dict | None = None):
             ev_preds, ev_labels = predict_with_model(
                 final_model, DataLoader(EEGDataset(X_ev_f, y_ev_f), batch_size=64), device)
         elif best["model_type"] == "ShallowConvNet":
-            import re; from src.models.shallow_convnet import ShallowConvNet
+            import re
+
+            from src.models.shallow_convnet import ShallowConvNet
             m = re.search(r"ft=(\d+),fs=(\d+),do=([\d.]+),lr=([\d.]+)", best["model_name"])
             ft, fs, do, lr = int(m.group(1)), int(m.group(2)), float(m.group(3)), float(m.group(4))
             final_model = ShallowConvNet(chans=n_chans, classes=n_classes, time_points=tp_f,
@@ -495,12 +498,15 @@ def main(config_path: str | None = None, overrides: dict | None = None):
                 final_model, DataLoader(EEGDataset(X_ev_f, y_ev_f), batch_size=64), device)
         else:  # CSP+ML
             from mne.decoding import CSP
-            from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
-            from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier
+            from sklearn.discriminant_analysis import \
+                LinearDiscriminantAnalysis
+            from sklearn.ensemble import (GradientBoostingClassifier,
+                                          RandomForestClassifier)
             from sklearn.linear_model import LogisticRegression
             from sklearn.neighbors import KNeighborsClassifier
             from sklearn.neural_network import MLPClassifier
-            from sklearn.pipeline import Pipeline; from sklearn.preprocessing import StandardScaler
+            from sklearn.pipeline import Pipeline
+            from sklearn.preprocessing import StandardScaler
             from sklearn.svm import SVC
             X_tv = np.concatenate([X_tr_f, X_vl_f]); y_tv = np.concatenate([y_tr_f, y_vl_f])
             ml_name = best["model_name"].replace("CSP+", "")

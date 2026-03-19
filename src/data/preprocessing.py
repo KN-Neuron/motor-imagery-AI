@@ -20,7 +20,7 @@ def epoch_subjects(
     tmin: float = 0.0,
     tmax: float = 4.0,
     baseline: tuple | None = None,
-    normalize: bool = True,
+    normalize: bool = False,
     balance: bool = False,
     label_offset: int | None = None,
     seed: int = 42,
