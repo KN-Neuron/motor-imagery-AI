@@ -44,6 +44,8 @@ def run_shallow_grid(
     epochs_train: int = 30,
     device: str | None = None,
     verbose: bool = True,
+    weight_decay: float = 0.0,
+    patience: int | None = None,
 ) -> list[dict[str, Any]]:
     """ShallowConvNet hyperparameter grid search with subject-based CV."""
     if device is None:
@@ -85,7 +87,7 @@ def run_shallow_grid(
             model = ShallowConvNet(
                 chans=chans, classes=classes, time_points=time_points, **params,
             ).to(device)
-            optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+            optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
             weights = compute_class_weight("balanced", classes=np.unique(y_tr), y=y_tr)
             loss_fn = nn.CrossEntropyLoss(
@@ -93,11 +95,18 @@ def run_shallow_grid(
             )
 
             best_val_acc = 0.0
+            epochs_no_improve = 0
             for epoch in range(epochs_train):
                 train_step(model, train_dl, loss_fn, optimizer, device)
                 _, val_acc = eval_step(model, val_dl, loss_fn, device)
                 if val_acc > best_val_acc:
                     best_val_acc = val_acc
+                    epochs_no_improve = 0
+                else:
+                    epochs_no_improve += 1
+                
+                if patience is not None and epochs_no_improve >= patience:
+                    break
 
             fold_accs.append(best_val_acc)
 
@@ -123,6 +132,8 @@ def run_eegnet_grid(
     epochs_train: int = 30,
     device: str | None = None,
     verbose: bool = True,
+    weight_decay: float = 0.0,
+    patience: int | None = None,
 ) -> list[dict[str, Any]]:
     """EEGNet hyperparameter grid search with subject-based CV."""
     if device is None:
@@ -163,7 +174,7 @@ def run_eegnet_grid(
                 f1=params["f1"], f2=f2, d=params["d"],
                 dropout_rate=params["dropout_rate"],
             ).to(device)
-            optimizer = torch.optim.Adam(model.parameters(), lr=params["lr"])
+            optimizer = torch.optim.Adam(model.parameters(), lr=params["lr"], weight_decay=weight_decay)
 
             weights = compute_class_weight("balanced", classes=np.unique(y_tr), y=y_tr)
             loss_fn = nn.CrossEntropyLoss(
@@ -171,11 +182,18 @@ def run_eegnet_grid(
             )
 
             best_val_acc = 0.0
+            epochs_no_improve = 0
             for epoch in range(epochs_train):
                 train_step(model, train_dl, loss_fn, optimizer, device)
                 _, val_acc = eval_step(model, val_dl, loss_fn, device)
                 if val_acc > best_val_acc:
                     best_val_acc = val_acc
+                    epochs_no_improve = 0
+                else:
+                    epochs_no_improve += 1
+                
+                if patience is not None and epochs_no_improve >= patience:
+                    break
 
             fold_accs.append(best_val_acc)
 

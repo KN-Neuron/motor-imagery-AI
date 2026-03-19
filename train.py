@@ -11,9 +11,9 @@ MindStride — CLI entry point (FIXED v2, 4-way split).
 Data flow:
   ┌─────────────────────────────────────────────────────────┐
   │  Split subject IDs (before ANY preprocessing)           │
-  │  ┌───────┐ ┌─────┐ ┌─────┐ ┌─────────┐                │
-  │  │ TRAIN │ │ VAL │ │ DEV │ │ HOLDOUT │                 │
-  │  └───┬───┘ └──┬──┘ └──┬──┘ └────┬────┘                │
+  │  ┌───────┐ ┌─────┐ ┌─────┐ ┌─────────┐                  │
+  │  │ TRAIN │ │ VAL │ │ DEV │ │ HOLDOUT │                  │
+  │  └───┬───┘ └──┬──┘ └──┬──┘ └────┬────┘                  │
   │      │        │       │         │                       │
   │  Preprocess  Preprocess  Preprocess  Preprocess         │
   │  (separate)  (separate)  (separate)  (separate)         │
@@ -84,14 +84,16 @@ def train_no_test(
     device: str,
     epochs: int = 50,
     verbose: bool = True,
+    patience: int | None = None,
 ) -> tuple[dict[str, list[float]], float]:
-    """Training loop. Val for checkpointing ONLY. No other data access."""
+    """Training loop with early stopping. Val for checkpointing ONLY. No other data access."""
     results = {
         "train_loss": [], "train_acc": [],
         "val_loss": [], "val_acc": [],
     }
     best_val_acc = 0.0
     best_state = None
+    epochs_no_improve = 0
 
     iterator = tqdm(range(epochs), desc="Training") if verbose else range(epochs)
     for epoch in iterator:
@@ -100,19 +102,29 @@ def train_no_test(
             scheduler.step()
         val_loss, val_acc = eval_step(model, val_dataloader, loss_fn, device)
 
-        if val_acc > best_val_acc:
+        is_best = val_acc > best_val_acc
+        if is_best:
             best_val_acc = val_acc
             best_state = copy.deepcopy(model.state_dict())
+            epochs_no_improve = 0
+        else:
+            epochs_no_improve += 1
 
         if verbose:
             print(f"Epoch {epoch+1:3d} | "
                   f"train: {train_loss:.4f} / {train_acc:.4f} | "
-                  f"val: {val_loss:.4f} / {val_acc:.4f}")
+                  f"val: {val_loss:.4f} / {val_acc:.4f}" + 
+                  (" (Best)" if is_best else f" (no imp: {epochs_no_improve})"))
 
         results["train_loss"].append(train_loss)
         results["train_acc"].append(train_acc)
         results["val_loss"].append(val_loss)
         results["val_acc"].append(val_acc)
+
+        if patience is not None and epochs_no_improve >= patience:
+            if verbose:
+                print(f"\nEarly stopping triggered after {epoch+1} epochs.")
+            break
 
     if best_state:
         model.load_state_dict(best_state)
@@ -328,13 +340,16 @@ def main(config_path: str | None = None, overrides: dict | None = None):
                         temp_kernel=eeg_cfg["temp_kernel"], pk1=eeg_cfg["pk1"],
                         pk2=eeg_cfg["pk2"], dropout_rate=eeg_cfg["dropout_rate"]).to(device)
         loss_fn = _make_loss_fn(y_train, device, tr_cfg["class_weighted_loss"])
-        optimizer = torch.optim.Adam(model.parameters(), lr=tr_cfg["lr"])
+        weight_decay = tr_cfg.get("weight_decay", 0.0)
+        optimizer = torch.optim.Adam(model.parameters(), lr=tr_cfg["lr"], weight_decay=weight_decay)
         T_max = tr_cfg.get("scheduler_T_max") or tr_cfg["epochs"]
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=T_max)
         loaders = _make_loaders(X_train, y_train, X_val, y_val, batch_size)
 
+        patience = tr_cfg.get("patience", None)
         results, best_val = train_no_test(model, loaders["train_loader"], loaders["val_loader"],
-                                           optimizer, loss_fn, scheduler, device, epochs=tr_cfg["epochs"])
+                                           optimizer, loss_fn, scheduler, device, 
+                                           epochs=tr_cfg["epochs"], patience=patience)
         eval_preds, eval_labels = predict_with_model(
             model, DataLoader(EEGDataset(X_eval, y_eval), batch_size=batch_size), device)
         eval_acc = float(np.mean(eval_preds == eval_labels))
@@ -356,7 +371,9 @@ def main(config_path: str | None = None, overrides: dict | None = None):
         fold_results, mean_acc, std_acc = cross_validate_subjects(
             X_cv, y_cv, s_cv, n_splits=cfg["cv"]["n_splits"], epochs=tr_cfg["epochs"],
             lr=tr_cfg["lr"], chans=n_chans, classes=n_classes,
-            time_points=time_points, device=device)
+            time_points=time_points, device=device,
+            weight_decay=tr_cfg.get("weight_decay", 0.0), 
+            patience=tr_cfg.get("patience", None))
         logger.log_stage("cross_validation", {"mean_acc": float(mean_acc), "std_acc": float(std_acc),
                                                "fold_accs": [float(x) for x in fold_results]})
 
@@ -368,7 +385,8 @@ def main(config_path: str | None = None, overrides: dict | None = None):
         grid_results = run_eegnet_grid(
             X_cv, y_cv, s_cv, param_grid=cfg["eegnet_grid"],
             chans=n_chans, classes=n_classes,
-            n_splits=cfg["cv"]["quick_splits"], epochs_train=cfg["cv"]["quick_epochs"], device=device)
+            n_splits=cfg["cv"]["quick_splits"], epochs_train=cfg["cv"]["quick_epochs"], device=device,
+            weight_decay=tr_cfg.get("weight_decay", 0.0), patience=tr_cfg.get("patience", None))
         grid_df = pd.DataFrame(grid_results).sort_values("mean_acc", ascending=False)
         for i, r in enumerate(grid_results):
             logger.log_stage(f"eegnet_grid_combo_{i+1}", {"mean_acc": r["mean_acc"], "std_acc": r["std_acc"]},
@@ -383,7 +401,8 @@ def main(config_path: str | None = None, overrides: dict | None = None):
         shallow_results = run_shallow_grid(
             X_cv, y_cv, s_cv, param_grid=cfg.get("shallow_grid"),
             chans=n_chans, classes=n_classes,
-            n_splits=cfg["cv"]["quick_splits"], epochs_train=cfg["cv"]["quick_epochs"], device=device)
+            n_splits=cfg["cv"]["quick_splits"], epochs_train=cfg["cv"]["quick_epochs"], device=device,
+            weight_decay=tr_cfg.get("weight_decay", 0.0), patience=tr_cfg.get("patience", None))
         shallow_df = pd.DataFrame(shallow_results).sort_values("mean_acc", ascending=False)
         for i, r in enumerate(shallow_results):
             logger.log_stage(f"shallow_grid_combo_{i+1}", {"mean_acc": r["mean_acc"], "std_acc": r["std_acc"]},
@@ -476,10 +495,12 @@ def main(config_path: str | None = None, overrides: dict | None = None):
             f1, d, do, lr = int(m.group(1)), int(m.group(2)), float(m.group(3)), float(m.group(4))
             final_model = EEGNet(chans=n_chans, classes=n_classes, time_points=tp_f,
                                   f1=f1, f2=f1*d, d=d, dropout_rate=do).to(device)
-            opt = torch.optim.Adam(final_model.parameters(), lr=lr)
-            sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=100)
+            weight_decay = tr_cfg.get("weight_decay", 0.0)
+            opt = torch.optim.Adam(final_model.parameters(), lr=lr, weight_decay=weight_decay)
+            sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=tr_cfg["epochs"])
             train_no_test(final_model, loaders_f["train_loader"], loaders_f["val_loader"],
-                          opt, _make_loss_fn(y_tr_f, device), sched, device, epochs=100)
+                          opt, _make_loss_fn(y_tr_f, device), sched, device, epochs=tr_cfg["epochs"],
+                          patience=tr_cfg.get("patience", None))
             ev_preds, ev_labels = predict_with_model(
                 final_model, DataLoader(EEGDataset(X_ev_f, y_ev_f), batch_size=64), device)
         elif best["model_type"] == "ShallowConvNet":
@@ -490,10 +511,12 @@ def main(config_path: str | None = None, overrides: dict | None = None):
             ft, fs, do, lr = int(m.group(1)), int(m.group(2)), float(m.group(3)), float(m.group(4))
             final_model = ShallowConvNet(chans=n_chans, classes=n_classes, time_points=tp_f,
                                           n_filters_time=ft, n_filters_spat=fs, drop_prob=do).to(device)
-            opt = torch.optim.Adam(final_model.parameters(), lr=lr)
-            sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=100)
+            weight_decay = tr_cfg.get("weight_decay", 0.0)
+            opt = torch.optim.Adam(final_model.parameters(), lr=lr, weight_decay=weight_decay)
+            sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=tr_cfg["epochs"])
             train_no_test(final_model, loaders_f["train_loader"], loaders_f["val_loader"],
-                          opt, _make_loss_fn(y_tr_f, device), sched, device, epochs=100)
+                          opt, _make_loss_fn(y_tr_f, device), sched, device, epochs=tr_cfg["epochs"],
+                          patience=tr_cfg.get("patience", None))
             ev_preds, ev_labels = predict_with_model(
                 final_model, DataLoader(EEGDataset(X_ev_f, y_ev_f), batch_size=64), device)
         else:  # CSP+ML

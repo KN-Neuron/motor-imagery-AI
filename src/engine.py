@@ -84,14 +84,10 @@ def train(
     device: str,
     epochs: int = 50,
     verbose: bool = True,
+    patience: int | None = None,
 ) -> tuple[dict[str, list[float]], float]:
     """
     Full training loop with best-model checkpointing on val set.
-
-    Returns
-    -------
-    results : dict with train_loss, train_acc, val_loss, val_acc, test_loss, test_acc
-    best_val_acc : float
     """
     results: dict[str, list[float]] = {
         "train_loss": [], "train_acc": [],
@@ -101,6 +97,7 @@ def train(
 
     best_val_acc = 0.0
     best_state = None
+    epochs_no_improve = 0
 
     iterator = tqdm(range(epochs), desc="Training") if verbose else range(epochs)
     for epoch in iterator:
@@ -109,21 +106,31 @@ def train(
             scheduler.step()
         val_loss, val_acc = eval_step(model, val_dataloader, loss_fn, device)
 
-        if val_acc > best_val_acc:
+        is_best = val_acc > best_val_acc
+        if is_best:
             best_val_acc = val_acc
             best_state = copy.deepcopy(model.state_dict())
+            epochs_no_improve = 0
+        else:
+            epochs_no_improve += 1
 
         if verbose:
             print(
                 f"Epoch {epoch+1:3d} | "
                 f"train_loss: {train_loss:.4f}  train_acc: {train_acc:.4f} | "
-                f"val_loss: {val_loss:.4f}  val_acc: {val_acc:.4f}"
+                f"val_loss: {val_loss:.4f}  val_acc: {val_acc:.4f}" +
+                (" (Best)" if is_best else f" (no imp: {epochs_no_improve})")
             )
 
         results["train_loss"].append(train_loss)
         results["train_acc"].append(train_acc)
         results["val_loss"].append(val_loss)
         results["val_acc"].append(val_acc)
+        
+        if patience is not None and epochs_no_improve >= patience:
+            if verbose:
+                print(f"\nEarly stopping triggered after {epoch+1} epochs.")
+            break
 
     # Restore best model and evaluate on test set
     if best_state:
@@ -157,6 +164,8 @@ def cross_validate_subjects(
     time_points: int | None = None,
     device: str | None = None,
     verbose: bool = True,
+    weight_decay: float = 0.0,
+    patience: int | None = None,
 ) -> tuple[list[float], float, float]:
     """
     Subject-based K-Fold cross-validation for EEGNet.
@@ -186,7 +195,7 @@ def cross_validate_subjects(
             chans=chans, classes=classes, time_points=time_points,
             f1=f1, f2=f2, d=d, dropout_rate=dropout_rate, temp_kernel=temp_kernel,
         ).to(device)
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
         fold_weights = compute_class_weight("balanced", classes=np.unique(y_tr), y=y_tr)
@@ -195,12 +204,22 @@ def cross_validate_subjects(
         )
 
         best_val_acc = 0.0
+        epochs_no_improve = 0
         for epoch in range(epochs):
             train_step(model, train_dl, loss_fn, optimizer, device)
             scheduler.step()
             _, val_acc = eval_step(model, val_dl, loss_fn, device)
+            
             if val_acc > best_val_acc:
                 best_val_acc = val_acc
+                epochs_no_improve = 0
+            else:
+                epochs_no_improve += 1
+                
+            if patience is not None and epochs_no_improve >= patience:
+                if verbose:
+                    print(f"Early stopping at epoch {epoch+1}")
+                break
 
         if verbose:
             print(f"Fold {fold+1} best val_acc: {best_val_acc:.4f}")
