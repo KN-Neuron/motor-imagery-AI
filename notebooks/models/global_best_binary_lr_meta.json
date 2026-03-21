@@ -1,0 +1,20 @@
+{
+  "model_name": "EEGNet(f1=16,d=2,do=0.25,lr=0.001)",
+  "preproc": "bp=4-40Hz, t=0.0-4.0s, bl=no",
+  "chans": 21,
+  "classes": 2,
+  "time_points": 641,
+  "bandpass": [
+    4.0,
+    40.0
+  ],
+  "tmin": 0.0,
+  "tmax": 4.0,
+  "baseline": "no",
+  "sfreq": 160,
+  "labels": {
+    "0": "left_hand",
+    "1": "right_hand"
+  },
+  "test_accuracy": 0.7770448548812665
+}
