@@ -1,0 +1,12 @@
+{
+  "experiment": "binary_lr_21ch",
+  "model": "MLP",
+  "best_params": {
+    "classifier__alpha": "0.001",
+    "classifier__hidden_layer_sizes": "(64, 32)",
+    "classifier__learning_rate_init": "0.01",
+    "csp__n_components": "4"
+  },
+  "cv_accuracy": 0.6050453081183804,
+  "test_accuracy": 0.614569536423841
+}

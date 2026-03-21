@@ -20,7 +20,8 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
-
+cache/
+outputs/*
 # Virtual environments
 venv/
 env/
@@ -34,10 +35,10 @@ ENV/
 
 # Jupyter
 .ipynb_checkpoints/
-*.ipynb
+# *.ipynb
 
 # Data and models (specific to this project)
-data/
+# data/
 models/*.pth
 models/*.pt
 
