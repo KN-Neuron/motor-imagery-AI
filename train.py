@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MindStride — CLI entry point (FIXED v2, 4-way split).
+BrainBoard — CLI entry point (FIXED v2, 4-way split).
 
 4-way subject split:
   - TRAIN  (60%) — gradient descent, backprop
@@ -386,7 +386,8 @@ def main(config_path: str | None = None, overrides: dict | None = None):
             X_cv, y_cv, s_cv, param_grid=cfg["eegnet_grid"],
             chans=n_chans, classes=n_classes,
             n_splits=cfg["cv"]["quick_splits"], epochs_train=cfg["cv"]["quick_epochs"], device=device,
-            weight_decay=tr_cfg.get("weight_decay", 0.0), patience=tr_cfg.get("patience", None))
+            weight_decay=tr_cfg.get("weight_decay", 0.0), patience=tr_cfg.get("patience", None),
+            checkpoint_path=out_dir / "ckpt_eegnet_grid.csv")
         grid_df = pd.DataFrame(grid_results).sort_values("mean_acc", ascending=False)
         for i, r in enumerate(grid_results):
             logger.log_stage(f"eegnet_grid_combo_{i+1}", {"mean_acc": r["mean_acc"], "std_acc": r["std_acc"]},
@@ -402,7 +403,8 @@ def main(config_path: str | None = None, overrides: dict | None = None):
             X_cv, y_cv, s_cv, param_grid=cfg.get("shallow_grid"),
             chans=n_chans, classes=n_classes,
             n_splits=cfg["cv"]["quick_splits"], epochs_train=cfg["cv"]["quick_epochs"], device=device,
-            weight_decay=tr_cfg.get("weight_decay", 0.0), patience=tr_cfg.get("patience", None))
+            weight_decay=tr_cfg.get("weight_decay", 0.0), patience=tr_cfg.get("patience", None),
+            checkpoint_path=out_dir / "ckpt_shallow_grid.csv")
         shallow_df = pd.DataFrame(shallow_results).sort_values("mean_acc", ascending=False)
         for i, r in enumerate(shallow_results):
             logger.log_stage(f"shallow_grid_combo_{i+1}", {"mean_acc": r["mean_acc"], "std_acc": r["std_acc"]},
@@ -438,7 +440,8 @@ def main(config_path: str | None = None, overrides: dict | None = None):
             raw_data_cv, preprocessing_grid=cfg["preprocessing_grid"],
             channels=channels, task_mode=task["mode"],
             n_splits=cfg["cv"]["quick_splits"], epochs=cfg["cv"]["quick_epochs"],
-            chans=n_chans, classes=n_classes, seed=cfg["seed"], device=device)
+            chans=n_chans, classes=n_classes, seed=cfg["seed"], device=device,
+            checkpoint_path=out_dir / "ckpt_preproc_grid.csv")
         for i, row in preproc_df.iterrows():
             logger.log_stage(f"preproc_combo_{i+1}", row.to_dict())
         logger.log_stage("preprocessing_grid_summary", {
@@ -459,7 +462,8 @@ def main(config_path: str | None = None, overrides: dict | None = None):
             include_eegnet=run_cfg.get("eegnet_grid_search", True),
             include_csp_ml=run_cfg.get("csp_ml_grid", True),
             include_shallow=run_cfg.get("shallow_grid_search", False),
-            seed=cfg["seed"], device=device)
+            seed=cfg["seed"], device=device,
+            checkpoint_path=out_dir / "ckpt_joint_grid.csv")
         for i, row in joint_df.iterrows():
             logger.log_stage(f"joint_combo_{i+1}", row.to_dict())
         logger.log_stage("joint_grid_summary", {
@@ -488,6 +492,7 @@ def main(config_path: str | None = None, overrides: dict | None = None):
         tp_f = X_tr_f.shape[2]
         loaders_f = _make_loaders(X_tr_f, y_tr_f, X_vl_f, y_vl_f, 64)
         final_model = None; pipe = None
+        train_results = None
 
         if best["model_type"] == "EEGNet":
             import re
@@ -498,7 +503,7 @@ def main(config_path: str | None = None, overrides: dict | None = None):
             weight_decay = tr_cfg.get("weight_decay", 0.0)
             opt = torch.optim.Adam(final_model.parameters(), lr=lr, weight_decay=weight_decay)
             sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=tr_cfg["epochs"])
-            train_no_test(final_model, loaders_f["train_loader"], loaders_f["val_loader"],
+            train_results, best_val = train_no_test(final_model, loaders_f["train_loader"], loaders_f["val_loader"],
                           opt, _make_loss_fn(y_tr_f, device), sched, device, epochs=tr_cfg["epochs"],
                           patience=tr_cfg.get("patience", None))
             ev_preds, ev_labels = predict_with_model(
@@ -514,7 +519,7 @@ def main(config_path: str | None = None, overrides: dict | None = None):
             weight_decay = tr_cfg.get("weight_decay", 0.0)
             opt = torch.optim.Adam(final_model.parameters(), lr=lr, weight_decay=weight_decay)
             sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=tr_cfg["epochs"])
-            train_no_test(final_model, loaders_f["train_loader"], loaders_f["val_loader"],
+            train_results, best_val = train_no_test(final_model, loaders_f["train_loader"], loaders_f["val_loader"],
                           opt, _make_loss_fn(y_tr_f, device), sched, device, epochs=tr_cfg["epochs"],
                           patience=tr_cfg.get("patience", None))
             ev_preds, ev_labels = predict_with_model(
@@ -547,9 +552,19 @@ def main(config_path: str | None = None, overrides: dict | None = None):
 
         stage7_acc = float(np.mean(ev_preds == ev_labels))
         print_evaluation(ev_labels, ev_preds, class_names, f"STAGE 7 — {eval_label}")
-        logger.log_stage("final_retrain", {"model_name": str(best["model_name"]),
-                          "preproc": str(best["preproc"]), "cv_acc": float(best["mean_acc"]),
-                          f"{eval_label.lower()}_acc": stage7_acc})
+
+        stage7_log_data = {
+            "model_name": str(best["model_name"]),
+            "preproc": str(best["preproc"]),
+            "cv_acc": float(best["mean_acc"]),
+            f"{eval_label.lower()}_acc": stage7_acc
+        }
+        if train_results is not None:
+            stage7_log_data["epoch_history"] = train_results
+            plot_training_curves(train_results, f"Final Retrain — {best['model_name']}",
+                                 save_path=out_dir / "final_retrain_curves.png")
+
+        logger.log_stage("final_retrain", stage7_log_data)
 
         # ── 3-way: this IS the final result ──────────────────
         if not is_4way:

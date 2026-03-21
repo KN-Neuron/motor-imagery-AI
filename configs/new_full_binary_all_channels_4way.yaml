@@ -1,7 +1,5 @@
 # ============================================================
-# Full Binary L/R — all 64 channels (Zoptymalizowany)
-# ============================================================
-# Usage: poetry run python train.py --config configs/full_binary_allch.yaml
+# Full Binary L/R — all 64 channels (Tylko Deep Learning)
 # ============================================================
 seed: 42
 
@@ -38,7 +36,6 @@ channels:
     - "Cp6."
 
 preprocessing:
-  # Ustawiamy domyślnie na historycznie najlepsze wartości
   bandpass: [0.0, 49.0]
   tmin: 0.0
   tmax: 4.0
@@ -57,14 +54,12 @@ split:
   train_ratio: 0.60
   val_ratio: 0.20
   dev_ratio: 0.10
-  # holdout_ratio: 0.10  (inferred as remainder)
 
 dataloader:
   batch_size: 64
   num_workers: 0
 
 # ── EEGNet defaults for single run ─────────────────────────
-# Ustawione na najlepszy zidentyfikowany profil
 eegnet:
   f1: 16
   d: 2
@@ -77,8 +72,8 @@ eegnet:
 training:
   epochs: 100
   lr: 0.001
-  weight_decay: 0.001      # Lekka regularyzacja na start
-  patience: 15             # Early stopping (15 epok braku poprawy wystarczy)
+  weight_decay: 0.001
+  patience: 15
   optimizer: "adam"
   scheduler: "cosine"
   scheduler_T_max: null
@@ -91,7 +86,6 @@ cv:
   quick_epochs: 30
 
 # ── EEGNet Grid Search ─────────────────────────────────────
-# Poszerzamy sieć (f1=32, d=8) i skupiamy się na dobrych LR
 eegnet_grid:
   lr: [0.001, 0.0005]
   dropout_rate: [0.25, 0.5]
@@ -100,7 +94,6 @@ eegnet_grid:
   temp_kernel: [32, 64]
 
 # ── ShallowConvNet Grid Search ──────────────────────────────
-# 64ch: sprawdzamy większą liczbę filtrów przestrzennych
 shallow_grid:
   n_filters_time: [20, 40]
   n_filters_spat: [20, 40]
@@ -110,27 +103,27 @@ shallow_grid:
   drop_prob: [0.25, 0.5]
   lr: [0.001]
 
-# ── CSP + ML ───────────────────────────────────────────────
-csp_ml:
-  csp_n_components: [4, 6, 8, 10]
-  csp_reg: "ledoit_wolf"
-  models:
-    - "LDA"
-    - "SVM"
-    - "RandomForest"
-    - "KNN"
-    - "GradientBoosting"
-    - "LogisticRegression"
-    - "MLP"
+# ── CSP + ML (WYŁĄCZONE) ───────────────────────────────────
+# Użytkownik zrezygnował z klasycznego ML
+# csp_ml:
+#   csp_n_components: [4, 6, 8, 10]
+#   csp_reg: "ledoit_wolf"
+#   models:
+#     - "LDA"
+#     - "SVM"
+#     - "RandomForest"
+#     - "KNN"
+#     - "GradientBoosting"
+#     - "LogisticRegression"
+#     - "MLP"
 
 # ── Preprocessing Grid Search ──────────────────────────────
-# Zawężone do absolutnego topu, żeby nie tracić czasu na słabe warianty
 preprocessing_grid:
   bandpass:
     - [0.0, 49.0]
     - [0.5, 45.0]
   time_window:
-    - [0.0, 4.0]     # To jest kluczowe! Nie obcinaj początku.
+    - [0.0, 4.0]
   baseline:
     - null
 
@@ -139,8 +132,8 @@ run:
   single_run: true
   cross_validation: true
   eegnet_grid_search: true
-  shallow_grid_search: true  # Włączone!
-  csp_ml_grid: true          # Włączone!
+  shallow_grid_search: true
+  csp_ml_grid: false           # <-- Ustawione na false
   preprocessing_grid: true
   joint_grid: true
   final_retrain: true

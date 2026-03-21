@@ -75,12 +75,12 @@ def epoch_subjects(
             X = epochs.get_data().astype(np.float32)
             y = epochs.events[:, -1] - label_offset
 
-            if normalize:
-                for ch in range(X.shape[1]):
-                    mean = X[:, ch, :].mean()
-                    std = X[:, ch, :].std()
-                    if std > 0:
-                        X[:, ch, :] = (X[:, ch, :] - mean) / std
+            # if normalize:
+            #     for ch in range(X.shape[1]):
+            #         mean = X[:, ch, :].mean()
+            #         std = X[:, ch, :].std()
+            #         if std > 0:
+            #             X[:, ch, :] = (X[:, ch, :] - mean) / std
 
             all_X.append(X)
             all_y.append(y)

@@ -54,7 +54,18 @@ python train.py
 
 # Train with custom config
 python train.py --config configs/my_experiment.yaml
+
+# Run repeated splits for stable evaluation (e.g., 5 runs with different seeds)
+python train_multiple_splits.py --config configs/full_binary_all_channels.yaml --runs 5
 ```
+
+### Safety Features & Checkpointing
+
+The grid search pipelines (EEGNet, ShallowConvNet, Preprocessing, and Joint) will now automatically log their progress dynamically to CSV files in the `outputs/` directory.
+
+- **Crash Recovery:** If the execution stops (due to out-of-memory errors, system crash, or pressing `Ctrl+C`), the partial grid search results are preserved.
+- **Resuming:** Running the script again will automatically read the `.csv` checkpoint from the previous stages (if pointing to the exact same directory depending on how output timestamping is configured, or manually moving the checkpoint) and skip the already completed combinations, saving hours of computation.
+- **Learning Curves:** During the `Final Retrain` stage (Stage 7), full epoch histories (loss, accuracy validation) are saved directly in `outputs/final_retrain_curves.png` and recorded in the JSON logger.
 
 ## Usage from Notebook
 
@@ -95,21 +106,21 @@ training:
 
 ## Notebook → Module Mapping
 
-| Notebook Section | Module |
-|---|---|
-| §1–4: Data loading, EDA | `src/data/loader.py` |
-| §4: Preprocessing & epoching | `src/data/preprocessing.py` |
-| §5–6: Split & DataLoaders | `src/data/splitter.py`, `src/data/dataset.py` |
-| §7: EEGNet | `src/models/eegnet.py` |
-| §8: Training engine | `src/engine.py` |
-| §9–12: Single run, CV, grid search | `src/engine.py`, `src/pipelines/grid_search.py` |
-| §13–14: CSP + classical ML | `src/pipelines/csp_ml.py` |
-| §15: Motor cortex channels | Same modules, different config |
-| §16: Two-stage mu-wave gating | `src/pipelines/two_stage.py` |
-| §17: Binary L/R pipeline | Same modules, `task.mode: binary` |
-| §18: Preprocessing grid search | `src/pipelines/grid_search.py` |
-| §19: Joint preprocessing × model search | `src/pipelines/grid_search.py` |
-| §20: FBCSP (stub) | `src/pipelines/fbcsp.py` |
+| Notebook Section                        | Module                                          |
+| --------------------------------------- | ----------------------------------------------- |
+| §1–4: Data loading, EDA                 | `src/data/loader.py`                            |
+| §4: Preprocessing & epoching            | `src/data/preprocessing.py`                     |
+| §5–6: Split & DataLoaders               | `src/data/splitter.py`, `src/data/dataset.py`   |
+| §7: EEGNet                              | `src/models/eegnet.py`                          |
+| §8: Training engine                     | `src/engine.py`                                 |
+| §9–12: Single run, CV, grid search      | `src/engine.py`, `src/pipelines/grid_search.py` |
+| §13–14: CSP + classical ML              | `src/pipelines/csp_ml.py`                       |
+| §15: Motor cortex channels              | Same modules, different config                  |
+| §16: Two-stage mu-wave gating           | `src/pipelines/two_stage.py`                    |
+| §17: Binary L/R pipeline                | Same modules, `task.mode: binary`               |
+| §18: Preprocessing grid search          | `src/pipelines/grid_search.py`                  |
+| §19: Joint preprocessing × model search | `src/pipelines/grid_search.py`                  |
+| §20: FBCSP (stub)                       | `src/pipelines/fbcsp.py`                        |
 
 ## Instrukcja jak dodawać nowe eksperymenty
 
@@ -205,7 +216,7 @@ eegnet:
 run:
   single_run: true
   cross_validation: true
-  eegnet_grid_search: false    # skip — testujesz ręczne params
+  eegnet_grid_search: false # skip — testujesz ręczne params
   csp_ml_grid: false
   preprocessing_grid: false
   joint_grid: false
