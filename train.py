@@ -39,7 +39,7 @@ Data flow:
   Stage 8 (holdout): ONE evaluation on HOLDOUT — this goes in the paper
 
 Usage:
-    python train_fixed.py --config configs/full_binary_all_channels.yaml
+    python train.py --config configs/full_binary_all_channels.yaml
 """
 
 from __future__ import annotations

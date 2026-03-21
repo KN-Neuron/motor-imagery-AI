@@ -104,6 +104,49 @@ training:
   epochs: 5
 ```
 
+## Data flow
+
+4-way subject split:
+  - TRAIN  (60%) — gradient descent, backprop
+  - VAL    (20%) — early stopping, checkpoint selection
+  - DEV    (10%) — model/preprocessing comparison across stages
+  - HOLDOUT(10%) — touched ONCE at the very end, reported in paper
+
+Data flow:
+  ┌─────────────────────────────────────────────────────────┐
+  │  Split subject IDs (before ANY preprocessing)           │
+  │  ┌───────┐ ┌─────┐ ┌─────┐ ┌─────────┐                  │
+  │  │ TRAIN │ │ VAL │ │ DEV │ │ HOLDOUT │                  │
+  │  └───┬───┘ └──┬──┘ └──┬──┘ └────┬────┘                  │
+  │      │        │       │         │                       │
+  │  Preprocess  Preprocess  Preprocess  Preprocess         │
+  │  (separate)  (separate)  (separate)  (separate)         │
+  │      │        │       │         │                       │
+  │      ▼        ▼       │         │ (locked away)         │
+  │   train()  checkpoint │         │                       │
+  │      │     selection  │         │                       │
+  │      │        │       │         │                       │
+  │  Stages 1-6   │       ▼         │                       │
+  │  grid search  │   evaluate      │                       │
+  │  CV on train+ │   best model    │                       │
+  │  val subjects │   on DEV        │                       │
+  │      │        │       │         │                       │
+  │  Stage 7:     │       │         ▼                       │
+  │  final retrain│       │    ONE evaluation               │
+  │  with best    │       │    (reported result)            │
+  │  config       │       │                                 │
+  └─────────────────────────────────────────────────────────┘
+
+  Stages 2-6 (CV, grid searches): GroupKFold on TRAIN+VAL only
+  Stage 1 (single run): train on TRAIN, checkpoint on VAL, eval on DEV
+  Stage 7 (final retrain): train on TRAIN, checkpoint on VAL, eval on DEV
+  Stage 8 (holdout): ONE evaluation on HOLDOUT — this goes in the paper
+
+Usage:
+```
+    python train.py --config configs/full_binary_all_channels.yaml
+```
+
 ## Notebook → Module Mapping
 
 | Notebook Section                        | Module                                          |
@@ -121,6 +164,28 @@ training:
 | §18: Preprocessing grid search          | `src/pipelines/grid_search.py`                  |
 | §19: Joint preprocessing × model search | `src/pipelines/grid_search.py`                  |
 | §20: FBCSP (stub)                       | `src/pipelines/fbcsp.py`                        |
+
+
+## Example training output
+============================================================
+  ALL DONE — results saved to outputs/20260320_141237_binary_all.json
+============================================================
+
+
+======================================================================
+ ALL RUNS COMPLETED 
+======================================================================
+ Seed  |  Dev Acc   | Holdout Acc  | Best Model
+----------------------------------------------------------------------
+  42   |   0.9167   |    0.8326    | EEGNet(f1=8,d=2,do=0.25,lr=0.001)
+  43   |   0.8170   |    0.8968    | EEGNet(f1=8,d=2,do=0.5,lr=0.0005)
+  44   |   0.8727   |    0.8197    | EEGNet(f1=8,d=2,do=0.25,lr=0.001)
+  45   |   0.8250   |    0.8374    | EEGNet(f1=16,d=2,do=0.5,lr=0.001)
+  46   |   0.9286   |    0.8286    | EEGNet(f1=8,d=2,do=0.5,lr=0.001)
+----------------------------------------------------------------------
+MEAN Dev Acc:     0.8720 ± 0.0457
+MEAN Holdout Acc: 0.8430 ± 0.0275
+============================================================
 
 ## Instrukcja jak dodawać nowe eksperymenty
 
