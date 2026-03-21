@@ -1,0 +1,161 @@
+# ============================================================
+# Full Binary L/R — all 64 channels
+# ============================================================
+# Usage: poetry run python train.py --config configs/full_binary_allch.yaml
+# ============================================================
+seed: 42
+
+data:
+  dataset: "brianleung2020/eeg-motor-movementimagery-dataset"
+  desired_runs: ["R04", "R08", "R12"]
+  sfreq: 160.0
+  cache_dir: "cache"
+  n_subjects: null
+
+channels:
+  mode: "all"
+  motor_channels:
+    - "Fc5."
+    - "Fc3."
+    - "Fc1."
+    - "Fcz."
+    - "Fc2."
+    - "Fc4."
+    - "Fc6."
+    - "C5.."
+    - "C3.."
+    - "C1.."
+    - "Cz.."
+    - "C2.."
+    - "C4.."
+    - "C6.."
+    - "Cp5."
+    - "Cp3."
+    - "Cp1."
+    - "Cpz."
+    - "Cp2."
+    - "Cp4."
+    - "Cp6."
+
+preprocessing:
+  bandpass: [7.0, 30.0]
+  tmin: 0.0
+  tmax: 4.0
+  baseline: null
+  balance_classes: true
+  normalize: false
+
+task:
+  mode: "binary"
+  event_id_binary:
+    left_hand: 2
+    right_hand: 3
+  class_names_binary: ["left_hand", "right_hand"]
+
+split:
+  train_ratio: 0.60
+  val_ratio: 0.20
+  dev_ratio: 0.10
+  # holdout_ratio: 0.10  (inferred as remainder)
+
+dataloader:
+  batch_size: 64
+  num_workers: 0
+
+# ── EEGNet defaults for single run ─────────────────────────
+eegnet:
+  f1: 8
+  d: 2
+  temp_kernel: 80
+  pk1: 4
+  pk2: 8
+  dropout_rate: 0.5
+
+# ── Training ────────────────────────────────────────────────
+training:
+  epochs: 100
+  lr: 0.001
+  optimizer: "adam"
+  scheduler: "cosine"
+  scheduler_T_max: null
+  class_weighted_loss: true
+
+# ── Cross-Validation ────────────────────────────────────────
+cv:
+  n_splits: 5
+  quick_splits: 3
+  quick_epochs: 30
+
+# ── EEGNet Grid Search ─────────────────────────────────────
+# 64ch: literature uses f1=8,d=2 (EEGNet-8,2) as standard,
+# and Nf=128 (f1=16,d=8) from Borra et al. for 64ch input.
+# Larger temp_kernels justified by more spatial info.
+# eegnet_grid:
+#   lr: [0.005, 0.001, 0.0005, 0.0001]
+#   dropout_rate: [0.25, 0.5]
+#   f1: [4, 8, 16]
+#   d: [1, 2, 4]
+#   temp_kernel: [32, 64, 80, 128]
+
+eegnet_grid:
+  lr: [0.005, 0.001, 0.0005, 0.0001]
+  dropout_rate: [0.25, 0.5]
+  f1: [4, 8, 16]
+  d: [1, 2, 4]
+  temp_kernel: [32, 64, 80, 128]
+
+# ── ShallowConvNet Grid Search ──────────────────────────────
+# 64ch: higher spatial filter counts justified.
+shallow_grid:
+  n_filters_time: [20]
+  n_filters_spat: [20]
+  filter_time_length: [15]
+  pool_time_length: [45]
+  pool_time_stride: [15]
+  drop_prob: [0.25]
+  lr: [0.001]
+
+# ── CSP + ML ───────────────────────────────────────────────
+csp_ml:
+  csp_n_components: [4, 6, 8, 10]
+  csp_reg: "ledoit_wolf"
+  models:
+    - "LDA"
+    - "SVM"
+    - "RandomForest"
+    - "KNN"
+    - "GradientBoosting"
+    - "LogisticRegression"
+    - "MLP"
+
+# ── Preprocessing Grid Search ──────────────────────────────
+preprocessing_grid:
+  bandpass:
+    - [0.0, 49]
+    - [0.5, 45]
+    - [4, 40]
+    - [8, 12]
+  time_window:
+    - [0.0, 4.0]
+    - [0.5, 4.0]
+  baseline:
+    - null
+    - [null, 0]
+
+# ── Which stages to run ────────────────────────────────────
+run:
+  single_run: true
+  cross_validation: true
+  eegnet_grid_search: true
+  shallow_grid_search: false
+  csp_ml_grid: false
+  preprocessing_grid: true
+  joint_grid: true
+  final_retrain: true
+
+# ── Output ──────────────────────────────────────────────────
+output:
+  save_dir: "outputs"
+  save_model: true
+  save_metadata: true
+  save_results_every_step: true

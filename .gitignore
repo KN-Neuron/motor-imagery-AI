@@ -20,11 +20,13 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
-
+cache/
+outputs/*
 # Virtual environments
 venv/
 env/
 ENV/
+.DS_Store
 
 # IDE
 .vscode/
@@ -37,7 +39,7 @@ ENV/
 # *.ipynb
 
 # Data and models (specific to this project)
-data/
+# data/
 models/*.pth
 models/*.pt
 
