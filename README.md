@@ -106,6 +106,8 @@ training:
 
 ## Data flow
 
+```
+
 4-way subject split:
   - TRAIN  (60%) — gradient descent, backprop
   - VAL    (20%) — early stopping, checkpoint selection
@@ -142,6 +144,8 @@ Data flow:
   Stage 7 (final retrain): train on TRAIN, checkpoint on VAL, eval on DEV
   Stage 8 (holdout): ONE evaluation on HOLDOUT — this goes in the paper
 
+```
+
 Usage:
 ```
     python train.py --config configs/full_binary_all_channels.yaml
@@ -167,6 +171,7 @@ Usage:
 
 
 ## Example training output
+```
 ============================================================
   ALL DONE — results saved to outputs/20260320_141237_binary_all.json
 ============================================================
@@ -186,6 +191,7 @@ Usage:
 MEAN Dev Acc:     0.8720 ± 0.0457
 MEAN Holdout Acc: 0.8430 ± 0.0275
 ============================================================
+```
 
 ## Instrukcja jak dodawać nowe eksperymenty
 
