@@ -312,11 +312,6 @@ Moduły są od siebie niezależne — `engine.py` nie wie nic o `csp_ml.py`, `EE
 
 # TODO
 
-# MindStride EEG — TODO List
-
-# MindStride EEG — TODO List
-
-24 out of 57 done — 42%
 
 | What | Status |
 |------|--------|
