@@ -369,6 +369,7 @@ Moduły są od siebie niezależne — `engine.py` nie wie nic o `csp_ml.py`, `EE
 | Generative models approach | ❌ |
 | Statistical analysis (p-values between approaches) | ❌ |
 | Blink trigger (real-time app) | ❌ |
+| Comparison between channels. Check only MI channels vs all channels vs only non MI channels | ❌ |
 | Retrain EEGNet na 16ch subset (BrainAccess MIDI channels) z PhysioNet | ❌ |
 | Channel mapping PhysioNet→MIDI + sferyczna interpolacja brakujących | ❌ |
 | Resample 250Hz + fine-tune na własnych danych z BrainAccess MIDI | ❌ |
