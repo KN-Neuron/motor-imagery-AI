@@ -1,4 +1,4 @@
-# MindStride — EEG Motor Imagery Classification
+#  EEG Motor Imagery Classification
 
 Modular Python pipeline for classifying left-hand / right-hand / rest motor imagery from the [PhysioNet EEG Motor Movement/Imagery Dataset](https://physionet.org/content/eegmmidb/1.0.0/) (109 subjects, 64-channel EEG, 160 Hz).
 
