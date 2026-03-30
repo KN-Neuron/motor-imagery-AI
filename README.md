@@ -372,6 +372,7 @@ Moduły są od siebie niezależne — `engine.py` nie wie nic o `csp_ml.py`, `EE
 | Comparison between channels. Check only MI channels vs all channels vs only non MI channels | ❌ |
 | Retrain EEGNet na 16ch subset (BrainAccess MIDI channels) z PhysioNet | ❌ |
 | Channel mapping PhysioNet→MIDI + sferyczna interpolacja brakujących | ❌ |
+| Try to find BCI-Illiterate people and do a full result analysis | ❌ |
 | Resample 250Hz + fine-tune na własnych danych z BrainAccess MIDI | ❌ |
 
 ## License
