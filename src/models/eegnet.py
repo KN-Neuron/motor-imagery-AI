@@ -51,8 +51,13 @@ class EEGNet(nn.Module):
         pk1: int = 4,
         pk2: int = 8,
         dropout_rate: float = 0.5,
+        max_norm1: float = 1.0,
+        max_norm2: float = 0.25,
     ):
         super().__init__()
+
+        self.max_norm1 = max_norm1
+        self.max_norm2 = max_norm2
 
         linear_size = (time_points // (pk1 * pk2)) * f2
 
@@ -95,3 +100,23 @@ class EEGNet(nn.Module):
         x = self.flatten(x)
         x = self.fc(x)
         return x
+
+    def apply_max_norm(self):
+        """
+        Apply Max-Norm Constraint.
+        Must be called in the training loop right after optimizer.step()
+        """
+        with torch.no_grad():
+            # Depthwise layer constraint
+            for name, param in self.block2[0].named_parameters():
+                if "weight" in name:
+                    param.data = torch.renorm(
+                        param.data, p=2, dim=0, maxnorm=self.max_norm1
+                    )
+
+            # Linear layer constraint
+            for name, param in self.fc.named_parameters():
+                if "weight" in name:
+                    param.data = torch.renorm(
+                        param.data, p=2, dim=0, maxnorm=self.max_norm2
+                    )
