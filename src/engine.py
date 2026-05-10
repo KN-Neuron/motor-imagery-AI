@@ -43,6 +43,10 @@ def train_step(
         loss.backward()
         optimizer.step()
 
+        # Apply max-norm constraint if model has the method
+        if hasattr(model, "apply_max_norm"):
+            model.apply_max_norm()
+
         total_loss += loss.item() * len(y)
         total_correct += (y_pred.argmax(dim=1) == y).sum().item()
         total_samples += len(y)

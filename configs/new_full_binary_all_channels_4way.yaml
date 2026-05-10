@@ -132,7 +132,7 @@ run:
   single_run: true
   cross_validation: true
   eegnet_grid_search: true
-  shallow_grid_search: true
+  shallow_grid_search: false
   csp_ml_grid: false           # <-- Ustawione na false
   preprocessing_grid: true
   joint_grid: true
