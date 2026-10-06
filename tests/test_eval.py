@@ -71,3 +71,11 @@ def test_bootstrap_and_wilcoxon_and_holm():
     assert holm({"a": .01, "b": .02, "c": .5})["a"] == pytest.approx(.03)
     assert summarize(a, np.round(a * 45), np.full(30, 45))["n_subjects"] == 30
     assert 10 < n_subjects_paired(.1, .08) < 40
+
+
+def test_within_subject_cv_detects_signal_and_chance():
+    from src.eval.sanity import within_subject_cv
+    X, y, s = _synthetic(n_sub=3, n=40)
+    assert np.mean(list(within_subject_cv(X, y, s, "csp_lda").values())) > 0.8
+    rng = np.random.RandomState(1)
+    assert abs(np.mean(list(within_subject_cv(X, rng.permutation(y), s, "csp_lda").values())) - 0.5) < 0.2
