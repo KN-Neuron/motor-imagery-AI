@@ -175,23 +175,9 @@ Usage:
 ============================================================
   ALL DONE — results saved to outputs/20260320_141237_binary_all.json
 ============================================================
-
-
-======================================================================
- ALL RUNS COMPLETED 
-======================================================================
- Seed  |  Dev Acc   | Holdout Acc  | Best Model
-----------------------------------------------------------------------
-  42   |   0.9167   |    0.8326    | EEGNet(f1=8,d=2,do=0.25,lr=0.001)
-  43   |   0.8170   |    0.8968    | EEGNet(f1=8,d=2,do=0.5,lr=0.0005)
-  44   |   0.8727   |    0.8197    | EEGNet(f1=8,d=2,do=0.25,lr=0.001)
-  45   |   0.8250   |    0.8374    | EEGNet(f1=16,d=2,do=0.5,lr=0.001)
-  46   |   0.9286   |    0.8286    | EEGNet(f1=8,d=2,do=0.5,lr=0.001)
-----------------------------------------------------------------------
-MEAN Dev Acc:     0.8720 ± 0.0457
-MEAN Holdout Acc: 0.8430 ± 0.0275
-============================================================
 ```
+
+> Dawna tabela wyników (84,3% na holdoucie) została usunięta: była niespójna z `summary_metrics.csv` (74,9 do 77,9%) i TODO (80%), opierała się na jednym holdoucie i wyborze po epokach. Jedyne źródło prawdy: [`docs/results.md`](docs/results.md), generowane automatycznie (`make reproduce`).
 
 ## Instrukcja jak dodawać nowe eksperymenty
 
@@ -310,6 +296,15 @@ YAML config → train.py czyta run: → odpala włączone STAGE'e
 
 Moduły są od siebie niezależne — `engine.py` nie wie nic o `csp_ml.py`, `EEGNet` nie wie nic o preprocessingu. `train.py` to jedyne miejsce które je klei razem.
 
+## Ewaluacja i reprodukcja
+
+```bash
+make reproduce DATA_DIR=/sciezka/do/physionet   # benchmark N-LNSO + symulacje + docs/results.md
+make test
+```
+
+Plan badań: `docs/research_plan.md`, literatura: `docs/related_work.md`. Moduł BrainAccess (tylko przygotowanie, zadanie 'hand clench' to wykonanie ruchu ME, nie wyobrażenie MI): `src/ba/`.
+
 # TODO
 
 
@@ -318,7 +313,7 @@ Moduły są od siebie niezależne — `engine.py` nie wie nic o `csp_ml.py`, `EE
 | PhysioNet MI data loading (R04, R08, R12) | ✅ |
 | EDA on single subject (PSD, raw signal) | ✅ |
 | Preprocessing: bandpass 7-30 Hz, epoching 0-4s | ✅ |
-| Per-subject z-score normalization | ✅ |
+| Normalizacja: jawny parametr `preprocessing.normalization` (none, zscore_subject_channel, exp_moving_standardization, euclidean_alignment); wcześniej z-score był zakomentowany | ✅ (wybór domyślnej po ablacji) |
 | Class balancing (downsampling to smallest class) | ✅ |
 | Weighted CrossEntropyLoss everywhere | ✅ |
 | Subject-based split (70/15/15, no leakage) | ✅ |
@@ -338,7 +333,7 @@ Moduły są od siebie niezależne — `engine.py` nie wie nic o `csp_ml.py`, `EE
 | Full pipeline repeated on both 64ch and 21ch | ✅ |
 | Preprocessing grid search (tmin/tmax/bandpass/baseline) | ✅ |
 | Joint grid search — preprocessing × all models (EEGNet + 7 ML) | ✅ |
-| Best combo: 4-40 Hz, 0-4s, EEGNet(f1=16,d=2,do=0.25) → 80% test acc | ✅ |
+| Dawny "best combo 80%" jest niezweryfikowany (patrz `docs/results.md`) | ⚠️ |
 | FBCSP (Filter Bank CSP) | ❌ |
 | Data augmentation (sliding window, noise, warping) | ❌ |
 | Ensemble (voting/stacking of best models) | ❌ |
@@ -348,7 +343,7 @@ Moduły są od siebie niezależne — `engine.py` nie wie nic o `csp_ml.py`, `EE
 | Feature extraction: connectivity (PLV, coherence) | ❌ |
 | Feature fusion + selection (mutual information, RFE) | ❌ |
 | Subject-adaptive bandpass | ❌ |
-| Riemannian geometry (pyriemann) | ❌ |
+| Riemannian geometry (pyriemann) | 🔧 zaimplementowane w `src/eval`, wyniki po uruchomieniu na serwerze |
 | Attention-based EEGNet | ❌ |
 | Transfer learning (pretrain → fine-tune per subject) | ❌ |
 | Sliding window inference | ❌ |
@@ -360,19 +355,19 @@ Moduły są od siebie niezależne — `engine.py` nie wie nic o `csp_ml.py`, `EE
 | ICA artifact removal (eye blinks, muscle artifacts) + comparison w/wo | ❌ |
 | Per-trial normalization (z-score per epoch instead of per subject) | ❌ |
 | Per-sample normalization (z-score per timepoint across channels) | ❌ |
-| Euclidean Alignment (covariance matrix centering per subject) | ❌ |
+| Euclidean Alignment (covariance matrix centering per subject) | 🔧 zaimplementowane w `src/eval`, wyniki po uruchomieniu na serwerze |
 | Min-max normalization comparison | ❌ |
 | Robust scaling (median/IQR — resistant to EEG artifacts) | ❌ |
 | Normalization strategy grid search (z-score vs min-max vs robust vs EA vs per-sample) | ❌ |
 | Full joint grid search on 64 channels (preprocessing × all models) | ❌ |
 | 64ch vs 21ch comparison (best combos head-to-head, same preprocessing) | ❌ |
 | Generative models approach | ❌ |
-| Statistical analysis (p-values between approaches) | ❌ |
+| Statistical analysis (p-values between approaches) | 🔧 zaimplementowane w `src/eval`, wyniki po uruchomieniu na serwerze |
 | Blink trigger (real-time app) | ❌ |
 | Comparison between channels. Check only MI channels vs all channels vs only non MI channels | ❌ |
-| Retrain EEGNet na 16ch subset (BrainAccess MIDI channels) z PhysioNet | ❌ |
+| Retrain EEGNet na 16ch subset (BrainAccess MIDI channels) z PhysioNet | 🔧 zaimplementowane w `src/eval`, wyniki po uruchomieniu na serwerze |
 | Channel mapping PhysioNet→MIDI + sferyczna interpolacja brakujących | ❌ |
-| Try to find BCI-Illiterate people and do a full result analysis | ❌ |
+| Try to find BCI-Illiterate people and do a full result analysis | 🔧 zaimplementowane w `src/eval`, wyniki po uruchomieniu na serwerze |
 | Resample 250Hz + fine-tune na własnych danych z BrainAccess MIDI | ❌ |
 
 ## License

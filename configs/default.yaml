@@ -48,7 +48,7 @@ preprocessing:
   tmax: 4.0
   baseline: null              # null or [null, 0] for pre-stimulus
   balance_classes: true
-  normalize: true             # per-subject channel-wise z-score
+  normalization: "none"          # none | zscore_subject_channel | exp_moving_standardization | euclidean_alignment (default chosen after benchmark ablation)
 
 # ── Task ────────────────────────────────────────────────────
 task:
@@ -83,6 +83,7 @@ eegnet:
   pk1: 4
   pk2: 8
   dropout_rate: 0.5
+  use_max_norm: false         # Lawhern 2018 max-norm (1.0 depthwise, 0.25 dense)
 
 # ── Training ────────────────────────────────────────────────
 training:

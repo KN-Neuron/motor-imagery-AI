@@ -53,9 +53,11 @@ class EEGNet(nn.Module):
         dropout_rate: float = 0.5,
         max_norm1: float = 1.0,
         max_norm2: float = 0.25,
+        use_max_norm: bool = False,
     ):
         super().__init__()
 
+        self.use_max_norm = use_max_norm
         self.max_norm1 = max_norm1
         self.max_norm2 = max_norm2
 
@@ -104,8 +106,11 @@ class EEGNet(nn.Module):
     def apply_max_norm(self):
         """
         Apply Max-Norm Constraint.
-        Must be called in the training loop right after optimizer.step()
+        Must be called in the training loop right after optimizer.step().
+        No-op unless ``use_max_norm`` (Lawhern et al. 2018: 1.0 depthwise, 0.25 dense).
         """
+        if not self.use_max_norm:
+            return
         with torch.no_grad():
             # Depthwise layer constraint
             for name, param in self.block2[0].named_parameters():

@@ -7,6 +7,8 @@ from __future__ import annotations
 import numpy as np
 import mne
 
+from src.data.normalization import NORMALIZATIONS, exp_moving_standardize, normalize_subject
+
 # Explicit annotation mapping — no fragile event_id='auto'
 ANNOTATION_MAPPING = {"T0": 1, "T1": 2, "T2": 3}
 
@@ -20,7 +22,7 @@ def epoch_subjects(
     tmin: float = 0.0,
     tmax: float = 4.0,
     baseline: tuple | None = None,
-    normalize: bool = False,
+    normalization: str = "none",
     balance: bool = False,
     label_offset: int | None = None,
     seed: int = 42,
@@ -35,7 +37,9 @@ def epoch_subjects(
     raw_data : dict of {subject_id: mne.io.Raw}
     event_id : dict, e.g. {'left_hand': 2, 'right_hand': 3}
     channels : list or None (all 64 channels)
-    normalize : bool — per-subject, per-channel z-score
+    normalization : one of NORMALIZATIONS. Always computed per subject, without
+        labels (zscore_subject_channel, euclidean_alignment on epochs;
+        exp_moving_standardization on the continuous filtered recording).
     balance : bool — if True, downsample globally (NOT recommended, use per-split)
     label_offset : int or None — subtracted from event codes to make 0-indexed.
         If None, auto-detected as min(event_id.values()).
@@ -44,6 +48,8 @@ def epoch_subjects(
     -------
     X_all, y_all, subjects_all, skipped
     """
+    if normalization not in NORMALIZATIONS:
+        raise ValueError(f"Unknown normalization '{normalization}', choose from {NORMALIZATIONS}")
     if label_offset is None:
         label_offset = min(event_id.values())
 
@@ -62,6 +68,9 @@ def epoch_subjects(
                 verbose=False,
             )
 
+            if normalization == "exp_moving_standardization":
+                raw._data = exp_moving_standardize(raw.get_data()).astype(np.float64)
+
             events, _ = mne.events_from_annotations(
                 raw, event_id=ANNOTATION_MAPPING, verbose=False
             )
@@ -75,18 +84,15 @@ def epoch_subjects(
             X = epochs.get_data().astype(np.float32)
             y = epochs.events[:, -1] - label_offset
 
-            # if normalize:
-            #     for ch in range(X.shape[1]):
-            #         mean = X[:, ch, :].mean()
-            #         std = X[:, ch, :].std()
-            #         if std > 0:
-            #             X[:, ch, :] = (X[:, ch, :] - mean) / std
+            if normalization in ("zscore_subject_channel", "euclidean_alignment"):
+                X = normalize_subject(X, normalization)
 
             all_X.append(X)
             all_y.append(y)
             all_subjects.append(np.full(len(y), int(subject)))
 
-        except Exception:
+        except Exception as e:
+            print(f"[epoch_subjects] skipped {subject}: {type(e).__name__}: {e}")
             skipped.append(subject)
 
     X_all = np.concatenate(all_X, axis=0)
@@ -121,6 +127,7 @@ def epoch_with_params(
     baseline: tuple | None = None,
     channels: list[str] | None = None,
     task_mode: str = "binary",
+    normalization: str = "none",
     seed: int = 42,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
@@ -141,7 +148,7 @@ def epoch_with_params(
         low_freq=low_freq, high_freq=high_freq,
         tmin=tmin, tmax=tmax,
         baseline=baseline,
-        normalize=True,
+        normalization=normalization,
         balance=False,
         label_offset=label_offset,
         seed=seed,

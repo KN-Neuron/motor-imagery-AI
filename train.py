@@ -145,13 +145,14 @@ def preprocess_split(
     tmin: float, tmax: float,
     baseline: tuple | None, label_offset: int, seed: int,
     balance: bool = True,
+    normalization: str = "none",
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Preprocess ONLY the given subjects. Z-score per-subject per-channel."""
+    """Preprocess ONLY the given subjects; `normalization` is per subject, label-free."""
     raw_subset = {s: raw_data[s] for s in raw_data if s in set(subject_ids)}
     X, y, subjects, _ = epoch_subjects(
         raw_subset, event_id=event_id, channels=channels,
         low_freq=low_freq, high_freq=high_freq, tmin=tmin, tmax=tmax,
-        baseline=baseline, normalize=False, balance=False,
+        baseline=baseline, normalization=normalization, balance=False,
         label_offset=label_offset, seed=seed)
     if balance and len(X) > 0:
         X, y, subjects = _balance_array(X, y, subjects, seed=seed)
@@ -295,7 +296,8 @@ def main(config_path: str | None = None, overrides: dict | None = None):
     pp_kw = dict(event_id=event_id, channels=channels,
                  low_freq=pp["bandpass"][0], high_freq=pp["bandpass"][1],
                  tmin=pp["tmin"], tmax=pp["tmax"], baseline=baseline,
-                 label_offset=label_offset, seed=cfg["seed"])
+                 label_offset=label_offset, seed=cfg["seed"],
+                 normalization=pp["normalization"])
 
     print(f"\nPreprocessing per split...")
     X_train, y_train, s_train = preprocess_split(raw_data, ids["train"], balance=balance, **pp_kw)
@@ -338,7 +340,8 @@ def main(config_path: str | None = None, overrides: dict | None = None):
         model = EEGNet(chans=n_chans, classes=n_classes, time_points=time_points,
                         f1=eeg_cfg["f1"], f2=eeg_cfg["f1"]*eeg_cfg["d"], d=eeg_cfg["d"],
                         temp_kernel=eeg_cfg["temp_kernel"], pk1=eeg_cfg["pk1"],
-                        pk2=eeg_cfg["pk2"], dropout_rate=eeg_cfg["dropout_rate"]).to(device)
+                        pk2=eeg_cfg["pk2"], dropout_rate=eeg_cfg["dropout_rate"],
+                        use_max_norm=eeg_cfg.get("use_max_norm", False)).to(device)
         loss_fn = _make_loss_fn(y_train, device, tr_cfg["class_weighted_loss"])
         weight_decay = tr_cfg.get("weight_decay", 0.0)
         optimizer = torch.optim.Adam(model.parameters(), lr=tr_cfg["lr"], weight_decay=weight_decay)
@@ -482,7 +485,8 @@ def main(config_path: str | None = None, overrides: dict | None = None):
         best_pp = dict(event_id=event_id, channels=channels,
                        low_freq=best["low_freq"], high_freq=best["high_freq"],
                        tmin=best["tmin"], tmax=best["tmax"],
-                       baseline=baseline_p, label_offset=label_offset, seed=cfg["seed"])
+                       baseline=baseline_p, label_offset=label_offset, seed=cfg["seed"],
+                       normalization=pp["normalization"])
 
         X_tr_f, y_tr_f, _ = preprocess_split(raw_data, ids["train"], balance=balance, **best_pp)
         X_vl_f, y_vl_f, _ = preprocess_split(raw_data, ids["val"],   balance=balance, **best_pp)
@@ -499,7 +503,8 @@ def main(config_path: str | None = None, overrides: dict | None = None):
             m = re.search(r"f1=(\d+),d=(\d+),do=([\d.]+),lr=([\d.]+)", best["model_name"])
             f1, d, do, lr = int(m.group(1)), int(m.group(2)), float(m.group(3)), float(m.group(4))
             final_model = EEGNet(chans=n_chans, classes=n_classes, time_points=tp_f,
-                                  f1=f1, f2=f1*d, d=d, dropout_rate=do).to(device)
+                                  f1=f1, f2=f1*d, d=d, dropout_rate=do,
+                                  use_max_norm=eeg_cfg.get("use_max_norm", False)).to(device)
             weight_decay = tr_cfg.get("weight_decay", 0.0)
             opt = torch.optim.Adam(final_model.parameters(), lr=lr, weight_decay=weight_decay)
             sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=tr_cfg["epochs"])
@@ -577,6 +582,8 @@ def main(config_path: str | None = None, overrides: dict | None = None):
                     "test_accuracy": stage7_acc,
                     "bandpass": [float(best["low_freq"]), float(best["high_freq"])],
                     "tmin": float(best["tmin"]), "tmax": float(best["tmax"]),
+                    "normalization": pp["normalization"], "sfreq": cfg["data"]["sfreq"],
+                    "channels": list(channels) if channels else "all_64", "units": "V",
                     "split": {k: sorted(v) for k, v in ids.items()}})
 
     # ════════════════════════════════════════════════════════
@@ -609,6 +616,8 @@ def main(config_path: str | None = None, overrides: dict | None = None):
                 "dev_accuracy": stage7_acc, "holdout_accuracy": holdout_acc,
                 "bandpass": [float(best["low_freq"]), float(best["high_freq"])],
                 "tmin": float(best["tmin"]), "tmax": float(best["tmax"]),
+                "normalization": pp["normalization"], "sfreq": cfg["data"]["sfreq"],
+                "channels": list(channels) if channels else "all_64", "units": "V",
                 "split": {k: sorted(v) for k, v in ids.items()}})
 
     print(f"\n{'='*60}\n  ALL DONE — results saved to {logger.filename}\n{'='*60}")

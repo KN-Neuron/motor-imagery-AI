@@ -109,6 +109,9 @@ def load_raw_subjects(
             raw = mne.io.read_raw_edf(f, preload=True, verbose=False)
             if raw.info["sfreq"] == sfreq:
                 raws.append(raw)
+            else:
+                print(f"[loader] subject {subject}: {Path(f).name} has sfreq "
+                      f"{raw.info['sfreq']} != {sfreq}, file skipped")
         if len(raws) == 0:
             print(f"⚠️  Subject {subject}: no valid files, skipping")
             continue
@@ -127,3 +130,21 @@ def load_raw_subjects(
             pickle.dump(raw_data, f)
 
     return raw_data
+
+
+def find_edf_files(
+    root: str | Path, desired_runs: list[str] | None = None,
+) -> dict[str, list[str]]:
+    """
+    Scan a local directory (e.g. a PhysioNet mirror on a server) for
+    ``S###R##.edf`` files. Same return format as ``download_dataset``.
+    """
+    desired_runs = desired_runs or ["R04", "R08", "R12"]
+    pat = re.compile(r"^S(\d{3})(R\d{2})\.edf$", re.IGNORECASE)
+    out: dict[str, list[str]] = {}
+    for dirname, _, filenames in os.walk(root):
+        for fn in sorted(filenames):
+            m = pat.match(fn)
+            if m and m.group(2).upper() in desired_runs:
+                out.setdefault(m.group(1), []).append(os.path.join(dirname, fn))
+    return out

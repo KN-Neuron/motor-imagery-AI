@@ -43,7 +43,7 @@ preprocessing:
   tmax: 4.0
   baseline: null
   balance_classes: true
-  normalize: true
+  normalization: "none"          # none | zscore_subject_channel | exp_moving_standardization | euclidean_alignment (default chosen after benchmark ablation)
 
 task:
   mode: "binary"

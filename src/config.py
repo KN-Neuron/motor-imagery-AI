@@ -55,6 +55,9 @@ def load_config(
     if overrides:
         cfg = _deep_merge(cfg, overrides)
 
+    if cfg.get("preprocessing", {}).get("normalization") is None:
+        raise ValueError("config: preprocessing.normalization must be set explicitly")
+
     # Auto-compute derived values
     eegnet = cfg.get("eegnet", {})
     if "f2" not in eegnet:
