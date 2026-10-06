@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import mne
+import warnings
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -17,6 +19,10 @@ from src.eval.degradation import make_degradations  # noqa: E402
 from src.eval.montages import MONTAGES  # noqa: E402
 from src.eval.pipelines import make_registry  # noqa: E402
 from src.eval.study import degradation_study, degradation_table, fewshot_study, trials_needed_curve  # noqa: E402
+
+
+mne.set_log_level("WARNING")
+warnings.filterwarnings("once")  # one line per distinct warning, not one per model
 
 
 def main():

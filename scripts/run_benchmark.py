@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import mne
+import warnings
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -16,6 +18,10 @@ from src.eval.data import build_epochs, load_raw  # noqa: E402
 from src.eval.nlnso import run_nlnso  # noqa: E402
 from src.eval.pipelines import make_registry  # noqa: E402
 from src.utils import set_seeds  # noqa: E402
+
+
+mne.set_log_level("WARNING")
+warnings.filterwarnings("once")  # one line per distinct warning, not one per model
 
 
 def git_hash():

@@ -38,6 +38,8 @@ def main():
          "Protokół: zagnieżdżona walidacja po osobach (N-LNSO), każda osoba testowana raz, wybór checkpointu na "
          "walidacji z puli treningowej, normalizacja per osoba bez etykiet. Jednostką niezależną jest osoba; "
          "przedziały ufności to bootstrap po osobach (95%). Wyniki w %.\n",
+         "Uwaga: przy oknie 2 s (321 próbek) braindecode zmniejsza jądra i pooling w Deep ConvNet "
+         "(wymaga >= 441 próbek), więc `deep` to zmodyfikowana wersja oryginału z Schirrmeister i in. 2017.\n",
          "## Porównanie modeli\n",
          "| pipeline | N os. | średnia [CI] | mediana [CI] | IQR | % os. istotnych (binom., p<0,05) | % os. >= 70% |",
          "|---|---|---|---|---|---|---|"]

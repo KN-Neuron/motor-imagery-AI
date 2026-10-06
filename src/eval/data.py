@@ -18,12 +18,19 @@ EVENT_ID = {"left_hand": 2, "right_hand": 3}
 
 
 def load_raw(data_cfg: dict) -> dict:
-    """Raw per subject after exclusion (preset + real sfreq check, all logged)."""
+    """
+    Raw per subject after exclusion. Exclusion comes ONLY from ``data.exclude``
+    (preset or id list) plus the real sfreq check; every dropped subject is logged
+    with its reason (nothing is excluded silently by the downloader).
+    """
     runs = data_cfg.get("runs", ["R04", "R08", "R12"])
+    sfreq = data_cfg.get("sfreq", 160.0)
     files = (find_edf_files(data_cfg["data_dir"], runs) if data_cfg.get("data_dir")
-             else download_dataset(desired_runs=runs))
-    raw = load_raw_subjects(files, sfreq=data_cfg.get("sfreq", 160.0), cache_dir=data_cfg.get("cache_dir"))
-    kept, _ = filter_subjects(raw, data_cfg.get("exclude", "koellod2023"), data_cfg.get("sfreq", 160.0))
+             else download_dataset(desired_runs=runs, exclude=set()))
+    raw = load_raw_subjects(files, sfreq=sfreq)
+    for sid in sorted(set(files) - set(raw)):
+        print(f"[subjects] dropped {sid}: no file with sfreq == {sfreq} (checked on the actual EDF header)")
+    kept, _ = filter_subjects(raw, data_cfg.get("exclude", "koellod2023"), sfreq)
     return kept
 
 
