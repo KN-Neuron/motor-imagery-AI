@@ -22,6 +22,8 @@ wheels/
 MANIFEST
 cache/
 outputs/*
+.DS_Store
+
 # Virtual environments
 venv/
 env/
