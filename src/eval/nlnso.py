@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from typing import Callable, Iterator
 
+import time
+
 import numpy as np
 import pandas as pd
 
@@ -35,7 +37,7 @@ def run_nlnso(
     X: np.ndarray, y: np.ndarray, subjects: np.ndarray,
     make_pipeline: Callable[[int], object], name: str,
     n_outer: int = 5, seeds=(0,), val_frac: float = 0.15, split_seed: int = 0,
-    balance_eval: bool = False,
+    balance_eval: bool = False, log: Callable[[str], None] | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     ``make_pipeline(seed)`` returns an object with
@@ -44,6 +46,7 @@ def run_nlnso(
     over seeds; seeds are NOT independent samples.
     """
     trial_rows = []
+    t0, n_runs = time.time(), 0
     for fold, tr, va, te in nlnso_splits(subjects, n_outer, val_frac, split_seed):
         assert not (set(tr) & set(va)) and not (set(tr) & set(te)) and not (set(va) & set(te))
         m_tr, m_va, m_te = (np.isin(subjects, g) for g in (tr, va, te))
@@ -52,6 +55,9 @@ def run_nlnso(
             pipe.fit(X[m_tr], y[m_tr], X[m_va], y[m_va])
             proba = pipe.predict_proba(X[m_te])  # test used once, after selection
             pred = proba.argmax(1)
+            n_runs += 1
+            if log:
+                log(f"[{name}] fold {fold + 1}/{n_outer} seed {seed} done, {time.time() - t0:.0f}s elapsed")
             for s, yt, p, pr in zip(subjects[m_te], y[m_te], pred, proba[:, -1]):
                 trial_rows.append((name, int(s), fold, seed, int(yt), int(p), float(pr)))
     trials = pd.DataFrame(trial_rows, columns=["pipeline", "subject", "fold", "seed", "y", "pred", "p_last"])

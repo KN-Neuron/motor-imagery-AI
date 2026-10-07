@@ -16,6 +16,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.eval.data import build_epochs, load_raw  # noqa: E402
 from src.eval.nlnso import run_nlnso  # noqa: E402
+from src.eval.resume import cfg_hash, run_or_load  # noqa: E402
 from src.eval.pipelines import make_registry  # noqa: E402
 from src.utils import set_seeds  # noqa: E402
 
@@ -52,13 +53,16 @@ def main():
     pp, ev = cfg["preprocessing"], cfg["eval"]
     reg = make_registry(epochs=ev["epochs"])
     per_all, trials_all, metas = [], [], {}
-    for pipe_name, norm in ev["grid"]:
+    h = cfg_hash({**cfg, "_n_subjects": a.n_subjects})  # data_dir/n-subjects changes invalidate parts
+    n_grid = len(ev["grid"])
+    for i, (pipe_name, norm) in enumerate(ev["grid"], 1):
         label = f"{pipe_name}|{norm}"
         X, y, s, ch, meta = build_epochs(raw, pp["band"], pp["tmin"], pp["tmax"], norm,
                                          pp["channels"], cfg["data"].get("cache_dir"))
-        print(f"[{label}] X={X.shape}", flush=True)
-        per, trials = run_nlnso(X, y, s, reg[pipe_name], label, n_outer=ev["n_outer"],
-                                seeds=ev["seeds"], val_frac=ev["val_frac"], split_seed=cfg["seed"])
+        print(f"=== {i}/{n_grid} {label} X={X.shape}", flush=True)
+        per, trials = run_or_load(out, label, h, lambda: run_nlnso(
+            X, y, s, reg[pipe_name], label, n_outer=ev["n_outer"], seeds=ev["seeds"],
+            val_frac=ev["val_frac"], split_seed=cfg["seed"], log=lambda m: print(m, flush=True)))
         per_all.append(per); trials_all.append(trials); metas[label] = meta.to_dict()
         pd.concat(per_all).to_csv(out / "per_subject.csv", index=False)  # incremental save
     pd.concat(trials_all).to_csv(out / "per_trial.csv", index=False)
