@@ -109,6 +109,19 @@ Few-shot: k=10/20 bez zysku; **k=40 = NaN, błąd projektu** (ok. 22 próby na k
    regresja liniowa nie usuwa oczu w całości).
 5. Dla BrainAccess: bodziec w środku ekranu i fiksacja; inaczej model może działać na oczach.
 
+### Plan dalej (uzgodnić po przeglądzie kodu)
+1. Nowy główny benchmark MI: kanały ruchowe + regresja EOG; porównać pasmo 7-30 vs 0,5-45 Hz i okno,
+   na wszystkich modelach (ok. 1-2 h).
+2. Kontrola rezydualna: czy po regresji z kanałów ruchowych da się jeszcze wyczytać spojrzenie.
+3. Dopiero potem bieg nocny: grid search hiperparametrów (jak w starym `train.py`) w wewnętrznej
+   pętli N-LNSO, tylko na osobach walidacyjnych, na ustawieniach, które przejdą punkty 1-2.
+4. BrainAccess: bodziec w środku ekranu + fiksacja; regresja EOG albo bez kanałów czołowych.
+5. Potencjalny wkład publikacyjny: ilościowy udział ruchów oczu w wynikach L/R MI na EEGMMIDB
+   (2 kanały F7/F8 < 4 Hz ≈ 81% vs 64 kanały 83,5%).
+
+Stan: użytkownik przegląda i waliduje cały dodany kod przed dalszymi biegami
+(mapa zmian i kolejność przeglądu: README, sekcja "Zmiany do przeglądu").
+
 ## 5. Moje błędy w trakcie (do pamiętania)
 
 - Twierdziłem, że `BAD_SUBJECTS` nie istnieje (istniało).
