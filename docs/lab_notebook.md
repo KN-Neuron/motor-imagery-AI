@@ -84,17 +84,29 @@ Few-shot: k=10/20 bez zysku; **k=40 = NaN, błąd projektu** (ok. 22 próby na k
 | **legacy_wb_frontal** | 0-4 | 10 czołowych (Fp/AF/F7/F8) | 81,0 | **81,5 [79,3; 83,7]** |
 | legacy_wb_occipital | 0-4 | 9 potylicznych | 68,2 | 69,1 [67,1; 71,0] |
 
-## 4. Wnioski robocze (stan na 2026-10-07)
+### 3.6 Testy ruchów oczu (N=106, okno 0-4 s)
+| wariant | pasmo | kanały | wynik |
+|---|---|---|---|
+| legacy_eye_heog, EEGNet zscore | 0,5-4 | tylko F7, F8 | **81,3 [79,1; 83,4]** |
+| legacy_eye_heog, LDA na 8 średnich F7-F8 | 0,5-4 | F7-F8 | **77,4 [75,1; 79,7]** (none: 77,2) |
+| legacy_eye_motor_regressed, EEGNet zscore | 0,5-45 | 21 ruchowych po regresji 6 czołowych | **69,3 [67,3; 71,2]** (none: 66,3) |
+| legacy_eye_frontal_mu_beta, EEGNet zscore | 7-30 | 10 czołowych | 77,5 [75,3; 79,7] (none: 66,5) |
+
+## 4. Wnioski robocze (stan na 2026-10-07, po testach oczu)
 
 1. Stary pipeline był poprawny metodologicznie; 84% to nie wyciek ani przypadek.
-2. **Same kanały czołowe dają tyle co pełny model**, a cały zysk przychodzi z pasma poniżej ok. 7 Hz;
-   CSP (tylko moc) w szerokim paśmie spada do losowego. Najprostsze wyjaśnienie: model rozpoznaje
-   kierunek spojrzenia (cel w EEGMMIDB pojawia się z lewej/prawej strony ekranu), nie wyobrażenie ruchu.
-   **Hipoteza, nie dowód**: EEGMMIDB nie ma kanałów EOG.
+2. **Dwa kanały przy oczach (F7, F8) poniżej 4 Hz dają 81%, prawie tyle co 64 kanały (83,5%)**;
+   jedna cecha "F7 minus F8" uśredniona w czasie z LDA daje 77%. Kanały ruchowe po regresji kanałów
+   czołowych spadają z 81 do 69%. Najprostsze wyjaśnienie: model w dużej mierze rozpoznaje kierunek
+   spojrzenia (cel w EEGMMIDB pojawia się z lewej/prawej strony ekranu), nie wyobrażenie ruchu.
+   Bardzo silna poszlaka, ale nie pomiar wprost: EEGMMIDB nie ma kanałów EOG.
 3. W paśmie 7-30 Hz usunięcie pierwszych 0,5 s kosztuje 17 pp, w szerokim tylko 5 pp
    (spójne z utrzymanym spojrzeniem przez całą próbę).
-4. Do czasu wykluczenia oczu jako liczbę MI raportujemy wariant bez najniższych częstotliwości
-   (np. 71,5% przy 4-40 Hz), a i tam udział oczu nie jest wykluczony.
+4. Kanały czołowe niosą informację także w 7-30 Hz (77,5% z zscore), więc samo odcięcie niskich
+   częstotliwości NIE usuwa oczu. Główny benchmark (4-40 Hz, 64 kanały, 71,5%) też może być
+   częściowo "oczny". Najlepsze obecne oszacowanie MI: kanały ruchowe po regresji EOG,
+   ok. 66-69% (może być zaniżone, jeśli regresja zabiera sygnał mózgowy, albo zawyżone, jeśli
+   regresja liniowa nie usuwa oczu w całości).
 5. Dla BrainAccess: bodziec w środku ekranu i fiksacja; inaczej model może działać na oczach.
 
 ## 5. Moje błędy w trakcie (do pamiętania)
@@ -106,14 +118,17 @@ Few-shot: k=10/20 bez zysku; **k=40 = NaN, błąd projektu** (ok. 22 próby na k
 - Okno 0,5-2,5 s i pasmo 4-40 Hz w benchmarku wybrałem a priori; komentarz o koszcie 2 s (~1,3 pp) się nie potwierdził.
 - Wniosek "przewaga siedzi w pierwszych 0,5 s" był prawdziwy tylko dla 7-30 Hz.
 
+- Twierdziłem, że informacja z czoła siedzi tylko w niskich częstotliwościach; test 7-30 Hz temu przeczy.
 - `build_epochs` podawał nazwy kanałów w kolejności z pliku EDF, a dane były w kolejności z configu
   (MNE `pick`). Na klasyfikację bez wpływu (dotyczyło tylko metadanych przy podzbiorach kanałów);
   naprawione przed regresją EOG, która wymaga poprawnych nazw.
 
 ## 6. Otwarte
 
-- Testy rozstrzygające oczy (przygotowane, do uruchomienia): `legacy_eye_heog` (F7-F8, 0,5-4 Hz, LDA),
-  `legacy_eye_motor_regressed` (21 ruchowych po regresji 6 czołowych), `legacy_eye_frontal_mu_beta` (czołowe w 7-30 Hz).
+- Zdefiniować główny benchmark MI na nowo: kanały ruchowe + regresja EOG; sprawdzić pasmo 7-30 vs 0,5-45
+  i okno; dopiero potem strojenie hiperparametrów w wewnętrznej pętli N-LNSO (bieg nocny).
+- Kontrola: czy po regresji z kanałów ruchowych da się jeszcze przewidzieć klasę z samego F7-F8 (rezydualne oczy).
+- Commity d4e813f..0423ad0 mają linię Co-Authored-By; użytkownik nie chce jej nigdy. Przepisanie historii wymaga force pusha (decyzja użytkownika).
 - Poprawki: guard sprawdzający nazwę normalizacji; usunąć k=40; `normalize` w starych configach.
 - Push do `development` na GitHubie zwraca 500; commity idą przez branch `legacy-check`.
 - Niezweryfikowane: listy kanałów BrainAccess, część cytowań "do weryfikacji", `poetry.lock`,
