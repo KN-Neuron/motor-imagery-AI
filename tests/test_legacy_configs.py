@@ -13,5 +13,7 @@ def test_legacy_config_channels_exist_in_physionet():
     files = sorted(glob.glob("configs/legacy_*.yaml"))
     assert any("wb_frontal" in f for f in files)
     for f in files:
-        ch = yaml.safe_load(open(f))["preprocessing"]["channels"]
+        pp = yaml.safe_load(open(f))["preprocessing"]
+        ch = pp["channels"]
         assert ch is None or set(ch) <= set(PHYSIONET64), f
+        assert set(pp.get("eog_regress") or []) <= set(ch or PHYSIONET64), f

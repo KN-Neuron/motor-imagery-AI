@@ -127,6 +127,27 @@ class SklearnPipeline:
         return self.clf.predict_proba(X.astype(np.float64))
 
 
+class HeogLDA:
+    """Horizontal-EOG proxy: (ch0 - ch1) averaged in ``n_bins`` time bins -> shrinkage LDA.
+    Meant for X restricted to [F7, F8]."""
+
+    def __init__(self, n_bins: int = 8, seed: int = 0):
+        self.n_bins = n_bins
+
+    def _feat(self, X):
+        assert X.shape[1] == 2, "heog_lda expects exactly two channels (F7, F8)"
+        d = (X[:, 0] - X[:, 1]).astype(np.float64)
+        return np.stack([b.mean(1) for b in np.array_split(d, self.n_bins, axis=1)], axis=1)
+
+    def fit(self, X_tr, y_tr, X_val=None, y_val=None):
+        from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+        self.clf = LinearDiscriminantAnalysis(solver="lsqr", shrinkage="auto").fit(self._feat(X_tr), y_tr)
+        return self
+
+    def predict_proba(self, X):
+        return self.clf.predict_proba(self._feat(X))
+
+
 def make_registry(epochs: int = 50, device=None) -> dict:
     kw = dict(epochs=epochs, device=device)
     return {
@@ -136,4 +157,5 @@ def make_registry(epochs: int = 50, device=None) -> dict:
         "deep": deep(**kw),
         "csp_lda": lambda seed: SklearnPipeline("csp_lda", seed),
         "ts_lr": lambda seed: SklearnPipeline("ts_lr", seed),
+        "heog_lda": lambda seed: HeogLDA(seed=seed),
     }

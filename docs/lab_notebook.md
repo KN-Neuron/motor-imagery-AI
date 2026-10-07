@@ -106,10 +106,14 @@ Few-shot: k=10/20 bez zysku; **k=40 = NaN, błąd projektu** (ok. 22 próby na k
 - Okno 0,5-2,5 s i pasmo 4-40 Hz w benchmarku wybrałem a priori; komentarz o koszcie 2 s (~1,3 pp) się nie potwierdził.
 - Wniosek "przewaga siedzi w pierwszych 0,5 s" był prawdziwy tylko dla 7-30 Hz.
 
+- `build_epochs` podawał nazwy kanałów w kolejności z pliku EDF, a dane były w kolejności z configu
+  (MNE `pick`). Na klasyfikację bez wpływu (dotyczyło tylko metadanych przy podzbiorach kanałów);
+  naprawione przed regresją EOG, która wymaga poprawnych nazw.
+
 ## 6. Otwarte
 
-- Testy rozstrzygające oczy: bipolarny F7-F8 w 0,5-4 Hz z LDA; kanały ruchowe po regresji kanałów
-  czołowych; kanały czołowe w 7-30 Hz.
+- Testy rozstrzygające oczy (przygotowane, do uruchomienia): `legacy_eye_heog` (F7-F8, 0,5-4 Hz, LDA),
+  `legacy_eye_motor_regressed` (21 ruchowych po regresji 6 czołowych), `legacy_eye_frontal_mu_beta` (czołowe w 7-30 Hz).
 - Poprawki: guard sprawdzający nazwę normalizacji; usunąć k=40; `normalize` w starych configach.
 - Push do `development` na GitHubie zwraca 500; commity idą przez branch `legacy-check`.
 - Niezweryfikowane: listy kanałów BrainAccess, część cytowań "do weryfikacji", `poetry.lock`,

@@ -34,13 +34,36 @@ def load_raw(data_cfg: dict) -> dict:
     return kept
 
 
+def regress_out(X: np.ndarray, subjects: np.ndarray, ch_names: list[str], refs: list[str]):
+    """EOG-style regression: per subject (label-free), remove from every non-reference
+    channel its least-squares projection on the reference channels, then drop the
+    references. Returns (X_clean, kept_channel_names)."""
+    ri = [ch_names.index(r) for r in refs]
+    ki = [i for i in range(len(ch_names)) if i not in ri]
+    out = np.empty((len(X), len(ki), X.shape[2]), dtype=X.dtype)
+    for sid in np.unique(subjects):
+        m = subjects == sid
+        R = X[m][:, ri].transpose(1, 0, 2).reshape(len(ri), -1)
+        K = X[m][:, ki].transpose(1, 0, 2).reshape(len(ki), -1)
+        R0 = R - R.mean(1, keepdims=True)
+        K0 = K - K.mean(1, keepdims=True)
+        B = np.linalg.lstsq(R0.T, K0.T, rcond=None)[0]  # (refs, kept)
+        clean = K0 - B.T @ R0
+        out[m] = clean.reshape(len(ki), m.sum(), -1).transpose(1, 0, 2)
+    return out, [ch_names[i] for i in ki]
+
+
 def build_epochs(raw: dict, band, tmin, tmax, normalization="none", channels=None,
-                 cache_dir: str | None = None):
-    """Returns X (n, C, T), y in {0,1}, subjects (int), ch_names, PreprocMeta."""
+                 cache_dir: str | None = None, eog_regress: list[str] | None = None):
+    """Returns X (n, C, T), y in {0,1}, subjects (int), ch_names, PreprocMeta.
+    ``eog_regress``: reference channels regressed out per subject and then dropped."""
     key = hashlib.md5(json.dumps([sorted(raw), band, tmin, tmax, normalization, channels]).encode()).hexdigest()[:10]
     f = Path(cache_dir) / f"epochs_{key}.npz" if cache_dir else None
     first = next(iter(raw.values()))
-    ch_names = [c for c in first.ch_names if channels is None or c in channels]
+    ch_names = list(first.ch_names) if channels is None else list(channels)  # MNE pick() keeps the given order
+    missing = [c for c in ch_names if c not in first.ch_names]
+    if missing:
+        raise KeyError(f"channels not in recording: {missing}")
     if f is not None and f.exists():
         z = np.load(f)
         X, y, s = z["X"], z["y"], z["s"]
@@ -50,6 +73,8 @@ def build_epochs(raw: dict, band, tmin, tmax, normalization="none", channels=Non
         if f is not None:
             f.parent.mkdir(parents=True, exist_ok=True)
             np.savez(f, X=X, y=y, s=s)
+    if eog_regress:
+        X, ch_names = regress_out(X, s, ch_names, eog_regress)
     meta = PreprocMeta.from_training_data(
         X, bandpass=tuple(band), tmin=tmin, tmax=tmax, sfreq=float(first.info["sfreq"]),
         channels=ch_names, normalization=normalization)

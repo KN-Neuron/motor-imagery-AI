@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 [ -f .venv/bin/activate ] && source .venv/bin/activate
 unset CUDA_VISIBLE_DEVICES
 python -c "import torch; print('torch', torch.__version__, 'cuda', torch.cuda.is_available())"
-RUNS="${RUNS:-legacy_replica legacy_window_only legacy_no_cue legacy_motor21 legacy_wideband legacy_wb_no_cue legacy_wb_mi_window legacy_wb_motor21 legacy_wb_frontal legacy_wb_occipital}"
+RUNS="${RUNS:-legacy_replica legacy_window_only legacy_no_cue legacy_motor21 legacy_wideband legacy_wb_no_cue legacy_wb_mi_window legacy_wb_motor21 legacy_wb_frontal legacy_wb_occipital legacy_eye_heog legacy_eye_motor_regressed legacy_eye_frontal_mu_beta}"
 for r in $RUNS; do
   echo "##### $r  $(date '+%F %T')"
   python scripts/run_benchmark.py --config "configs/$r.yaml" --out "results/$r" ${DATA_DIR:+--data-dir "$DATA_DIR"} \

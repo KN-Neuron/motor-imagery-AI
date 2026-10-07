@@ -58,7 +58,8 @@ def main():
     for i, (pipe_name, norm) in enumerate(ev["grid"], 1):
         label = f"{pipe_name}|{norm}"
         X, y, s, ch, meta = build_epochs(raw, pp["band"], pp["tmin"], pp["tmax"], norm,
-                                         pp["channels"], cfg["data"].get("cache_dir"))
+                                         pp["channels"], cfg["data"].get("cache_dir"),
+                                         eog_regress=pp.get("eog_regress"))
         print(f"=== {i}/{n_grid} {label} X={X.shape}", flush=True)
         per, trials = run_or_load(out, label, h, lambda: run_nlnso(
             X, y, s, reg[pipe_name], label, n_outer=ev["n_outer"], seeds=ev["seeds"],
