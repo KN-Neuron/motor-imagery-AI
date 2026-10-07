@@ -41,3 +41,22 @@ def test_build_epochs_channel_names_follow_data_order():
     X, y, s, names, _ = build_epochs({"001": raw}, (0.0, 79.0), 0.0, 4.0, channels=["F8..", "F7.."])
     assert names == ["F8..", "F7.."]
     assert np.abs(X[:, names.index("F7..")]).mean() > np.abs(X[:, names.index("F8..")]).mean()
+
+
+def test_build_epochs_regresses_before_normalizing():
+    import mne
+    import pytest
+    from src.eval.data import build_epochs
+    rng = np.random.RandomState(0)
+    n = 160 * 40
+    eog = np.cumsum(rng.randn(n)) * 1e-6
+    c3 = rng.randn(n) * 1e-6 + 5 * eog
+    raw = mne.io.RawArray(np.stack([c3, eog]), mne.create_info(["C3..", "F7.."], 160.0, "eeg"), verbose=False)
+    raw.set_annotations(mne.Annotations([2, 10, 18, 26], 4.0, ["T1", "T2", "T1", "T2"]))
+    X, _, _, names, _ = build_epochs({"001": raw}, (0.5, 40.0), 0.0, 4.0, "zscore_subject_channel",
+                                     channels=["C3..", "F7.."], eog_regress=["F7.."])
+    assert names == ["C3.."]
+    assert abs(X.std() - 1.0) < 0.05  # z-scored AFTER regression
+    with pytest.raises(ValueError):
+        build_epochs({"001": raw}, (0.5, 40.0), 0.0, 4.0, "exp_moving_standardization",
+                     channels=["C3..", "F7.."], eog_regress=["F7.."])

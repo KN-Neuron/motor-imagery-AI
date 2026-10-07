@@ -13,5 +13,7 @@ for r in $RUNS; do
   python scripts/run_benchmark.py --config "configs/$r.yaml" --out "results/$r" ${DATA_DIR:+--data-dir "$DATA_DIR"} \
     || echo "##### $r FAILED (continuing)"
 done
-python scripts/summarize_results.py results/main $(for r in $RUNS; do echo "results/$r"; done) | tee results/legacy_summary.txt
+SUMMARY="${SUMMARY:-results/legacy_summary.txt}"
+COMPARE="${COMPARE:-results/main}"
+python scripts/summarize_results.py $COMPARE $(for r in $RUNS; do echo "results/$r"; done) | tee "$SUMMARY"
 echo "##### ALL DONE $(date '+%F %T')"

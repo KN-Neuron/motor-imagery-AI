@@ -111,8 +111,9 @@ Few-shot: k=10/20 bez zysku; **k=40 = NaN, błąd projektu** (ok. 22 próby na k
 
 ### Plan dalej (uzgodnić po przeglądzie kodu)
 1. Nowy główny benchmark MI: kanały ruchowe + regresja EOG; porównać pasmo 7-30 vs 0,5-45 Hz i okno,
-   na wszystkich modelach (ok. 1-2 h).
-2. Kontrola rezydualna: czy po regresji z kanałów ruchowych da się jeszcze wyczytać spojrzenie.
+   na wszystkich modelach (ok. 1-2 h). Przygotowane: `mi_reg_mu_beta`, `mi_reg_mu_beta_nocue`, `mi_reg_wb_nocue`.
+2. Kontrola rezydualna: kanały ruchowe w 0,5-4 Hz bez i po regresji (`mi_ctrl_lowfreq_raw`, `mi_ctrl_lowfreq_reg`).
+   Uruchomienie obu punktów: `nohup bash scripts/run_mi_check.sh > mi_check.log 2>&1 &` → `results/mi_summary.txt`.
 3. Dopiero potem bieg nocny: grid search hiperparametrów (jak w starym `train.py`) w wewnętrznej
    pętli N-LNSO, tylko na osobach walidacyjnych, na ustawieniach, które przejdą punkty 1-2.
 4. BrainAccess: bodziec w środku ekranu + fiksacja; regresja EOG albo bez kanałów czołowych.
@@ -135,6 +136,11 @@ Stan: użytkownik przegląda i waliduje cały dodany kod przed dalszymi biegami
 - `build_epochs` podawał nazwy kanałów w kolejności z pliku EDF, a dane były w kolejności z configu
   (MNE `pick`). Na klasyfikację bez wpływu (dotyczyło tylko metadanych przy podzbiorach kanałów);
   naprawione przed regresją EOG, która wymaga poprawnych nazw.
+
+- Regresja EOG była wykonywana PO normalizacji; przy EA to błąd (EA miesza kanały). Od commitu
+  z `scripts/run_mi_check.sh` regresja idzie na surowych epokach, normalizacja po niej. Wynik
+  `legacy_eye_motor_regressed` (69,3%) policzony jeszcze starą kolejnością (zscore przed regresją;
+  dla zscore różnica powinna być niewielka, nie sprawdzone).
 
 ## 6. Otwarte
 

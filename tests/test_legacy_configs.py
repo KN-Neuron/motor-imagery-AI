@@ -10,7 +10,7 @@ def test_physionet64_has_64_unique_names():
 
 
 def test_legacy_config_channels_exist_in_physionet():
-    files = sorted(glob.glob("configs/legacy_*.yaml"))
+    files = sorted(glob.glob("configs/legacy_*.yaml") + glob.glob("configs/mi_*.yaml"))
     assert any("wb_frontal" in f for f in files)
     for f in files:
         pp = yaml.safe_load(open(f))["preprocessing"]

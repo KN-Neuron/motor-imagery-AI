@@ -10,7 +10,7 @@ import numpy as np
 
 from src.data.loader import find_edf_files
 from src.data.loading import download_dataset, load_raw_subjects
-from src.data.normalization import PreprocMeta
+from src.data.normalization import PreprocMeta, normalize_subject
 from src.data.preprocessing import epoch_subjects
 from src.data.subjects import filter_subjects
 
@@ -56,7 +56,14 @@ def regress_out(X: np.ndarray, subjects: np.ndarray, ch_names: list[str], refs: 
 def build_epochs(raw: dict, band, tmin, tmax, normalization="none", channels=None,
                  cache_dir: str | None = None, eog_regress: list[str] | None = None):
     """Returns X (n, C, T), y in {0,1}, subjects (int), ch_names, PreprocMeta.
-    ``eog_regress``: reference channels regressed out per subject and then dropped."""
+    ``eog_regress``: reference channels regressed out per subject and then dropped. The
+    regression runs on unnormalized epochs and the normalization is applied afterwards
+    (EA mixes channels, so regressing after it would no longer remove the references)."""
+    final_norm = normalization
+    if eog_regress:
+        if normalization == "exp_moving_standardization":
+            raise ValueError("eog_regress is not supported with exp_moving_standardization")
+        normalization = "none"
     key = hashlib.md5(json.dumps([sorted(raw), band, tmin, tmax, normalization, channels]).encode()).hexdigest()[:10]
     f = Path(cache_dir) / f"epochs_{key}.npz" if cache_dir else None
     first = next(iter(raw.values()))
@@ -75,6 +82,11 @@ def build_epochs(raw: dict, band, tmin, tmax, normalization="none", channels=Non
             np.savez(f, X=X, y=y, s=s)
     if eog_regress:
         X, ch_names = regress_out(X, s, ch_names, eog_regress)
+        if final_norm != "none":
+            X = X.copy()
+            for sid in np.unique(s):
+                X[s == sid] = normalize_subject(X[s == sid], final_norm)
+        normalization = final_norm
     meta = PreprocMeta.from_training_data(
         X, bandpass=tuple(band), tmin=tmin, tmax=tmax, sfreq=float(first.info["sfreq"]),
         channels=ch_names, normalization=normalization)
