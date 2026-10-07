@@ -1,0 +1,23 @@
+# Wideband 0.5-45 Hz, 0-4 s, only frontal/EOG-proxy channels (no motor cortex): high accuracy here = eye movements.
+# Run: python scripts/run_benchmark.py --config configs/legacy_wb_frontal.yaml --out results/legacy_wb_frontal
+seed: 0
+data:
+  data_dir: null              # local PhysioNet directory with S###R##.edf; null = kagglehub
+  runs: ["R04", "R08", "R12"] # motor IMAGERY left/right fist (T1/T2)
+  sfreq: 160.0
+  exclude: "none"        # legacy results were obtained without removing subjects      # none | koellod2023 | extended | legacy | [ids]
+  cache_dir: "cache"
+preprocessing:
+  band: [0.5, 45.0]
+  tmin: 0.0
+  tmax: 4.0
+  channels: ["Fp1.", "Fpz.", "Fp2.", "Af7.", "Af3.", "Afz.", "Af4.", "Af8.", "F7..", "F8.."]
+eval:
+  n_outer: 5                  # outer N-LNSO folds; each subject tested exactly once
+  val_frac: 0.15              # inner validation subjects drawn from training pool
+  seeds: [0, 1, 2]            # averaged per subject BEFORE any statistics
+  epochs: 50
+  grid:
+    - [eegnet, none]
+    - [eegnet, zscore_subject_channel]
+  reference: "eegnet|none"
