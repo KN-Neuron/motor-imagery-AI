@@ -1,0 +1,21 @@
+# Replication of Bouchane et al. 2025 (Sensors 25:1399): same data/model, three split schemes.
+# Run: nohup bash scripts/run_replication.sh > replication.log 2>&1 &
+seed: 0
+data:
+  data_dir: null                 # local PhysioNet directory; null = kagglehub
+  exclude: ["038", "088", "089", "092", "100", "104"]   # the paper's list -> 103 subjects
+  cache_dir: "cache/bouchane"
+train:                           # not given in the paper: Keras-like defaults
+  lr: 0.001
+  batch_size: 64
+  epochs: 40                     # paper: converged in 32-41 epochs; best epoch on validation loss
+  smote: true                    # training part only, as the paper states
+experiments:                     # subjects: first N after exclusion (the paper does not say which 7); null = all
+  - {name: paper7_random,   subjects: 7,    task: 5class, scheme: random_instance, n_folds: 10}
+  - {name: paper7_trial,    subjects: 7,    task: 5class, scheme: trial_grouped,   n_folds: 10}
+  - {name: paper7_subject,  subjects: 7,    task: 5class, scheme: subject,         n_folds: 7}
+  - {name: all_subject_lr,  subjects: null, task: lr,     scheme: subject,         n_folds: 5}
+  - {name: all_random_lr,   subjects: null, task: lr,     scheme: random_instance, n_folds: 5}
+  - {name: all_random,      subjects: null, task: 5class, scheme: random_instance, n_folds: 5}
+  - {name: all_trial,       subjects: null, task: 5class, scheme: trial_grouped,   n_folds: 5}
+  - {name: all_subject,     subjects: null, task: 5class, scheme: subject,         n_folds: 5}
