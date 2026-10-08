@@ -189,11 +189,30 @@ Obserwacje:
 Stan: użytkownik przegląda i waliduje cały dodany kod przed dalszymi biegami
 (mapa zmian i kolejność przeglądu: README, sekcja "Zmiany do przeglądu").
 
-### Plan: ruch wykonywany (2026-10-09)
-Te same kontrole na przebiegach z ruchem (R03/R07/R11, lewa/prawa pięść), osobne configi `configs/mm_*.yaml`
-i katalogi `results/mm_*` (wyniki MI nienaruszone): stare ustawienie 64 kan. 0,5-45 Hz, F7/F8 < 4 Hz,
-benchmark po regresji (7-30 Hz i 0,5-45 Hz, 0,5-4 s), kontrola 0,5-4 Hz bez/po regresji.
-Uruchomienie: `nohup bash scripts/run_movement_check.sh > movement_check.log 2>&1 &` → `results/movement_summary.txt`.
+### 3.9 Ruch wykonywany (R03/R07/R11) vs wyobrażony, te same kontrole (2026-10-09, N=106)
+Configi `configs/mm_*.yaml`, wyniki `results/mm_*`, tabela `results/movement_summary.txt`.
+
+| wariant | wyobrażenie (MI) | ruch (MM) |
+|---|---|---|
+| stare ustawienie, 64 kan. 0,5-45 Hz, EEGNet zscore | 83,5 | 85,0 [83,1; 86,8] |
+| F7/F8 < 4 Hz, EEGNet zscore | 81,3 | 78,8 [76,2; 81,2] |
+| F7-F8, LDA (zscore) | 77,4 | 74,0 [71,3; 76,7] |
+| motor21 po regresji, 7-30 Hz, 0,5-4 s: EEGNet zscore | 66,7 | 64,7 [62,7; 66,8] |
+| to samo: CSP+LDA EA | 66,2 | 69,4 [66,7; 72,0] |
+| to samo: TS+LR EA | 64,5 | **69,8 [67,0; 72,4]** |
+| motor21 po regresji, 0,5-45 Hz: EEGNet zscore / Shallow | 67,0 / 62,9 | 62,2 / 65,1 |
+| motor21 0,5-4 Hz bez regresji | 80,8 | 81,9 |
+| motor21 0,5-4 Hz po regresji | 62,1 | 66,9 [65,3; 68,5] |
+
+Obserwacje:
+- Oczy dominują także przy ruchu: F7/F8 < 4 Hz daje 79%, stare ustawienie 85%.
+- Po regresji i w 7-30 Hz ruch jest lepszy od wyobrażenia tylko dla metod kowariancyjnych (CSP, TS: ok. +3-5 pp,
+  ok. 70%); EEGNet nieco gorszy (64,7). Różnic MI vs MM nie testowałem parami (te same osoby, inne próby).
+- Spodziewałem się wyraźnie lepszego wyniku dla ruchu; nie ma go. Rozpoznawanie L/R u nowych osób jest
+  trudne także przy prawdziwym ruchu (ok. 70% to górna granica w tych ustawieniach).
+- Resztka w 0,5-4 Hz po regresji jest większa dla ruchu (66,9 vs 62,1): zgodne z silniejszymi wolnymi
+  potencjałami ruchowymi (MRCP) przy wykonaniu, ale mogą to też być resztki oczu albo mięśni; nierozstrzygnięte.
+- Szerokie pasmo po regresji szkodzi CSP przy ruchu jeszcze bardziej (55,0).
 
 ### Literatura: analiza krytyczna Bouchane et al. 2025 (2026-10-09)
 Bouchane M., Guo W., Yang S. *Hybrid CNN-GRU Models for Improved EEG Motor Imagery Classification.*
