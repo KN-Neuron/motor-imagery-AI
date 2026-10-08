@@ -17,3 +17,12 @@ def test_legacy_config_channels_exist_in_physionet():
         ch = pp["channels"]
         assert ch is None or set(ch) <= set(PHYSIONET64), f
         assert set(pp.get("eog_regress") or []) <= set(ch or PHYSIONET64), f
+
+
+def test_movement_configs_use_execution_runs_and_mirror_imagery():
+    files = sorted(glob.glob("configs/mm_*.yaml"))
+    assert len(files) == 6
+    for f in files:
+        c = yaml.safe_load(open(f))
+        assert c["data"]["runs"] == ["R03", "R07", "R11"], f
+        assert set(c["preprocessing"]["channels"] or PHYSIONET64) <= set(PHYSIONET64), f

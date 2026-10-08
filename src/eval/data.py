@@ -64,7 +64,11 @@ def build_epochs(raw: dict, band, tmin, tmax, normalization="none", channels=Non
         if normalization == "exp_moving_standardization":
             raise ValueError("eog_regress is not supported with exp_moving_standardization")
         normalization = "none"
-    key = hashlib.md5(json.dumps([sorted(raw), band, tmin, tmax, normalization, channels]).encode()).hexdigest()[:10]
+    # recordings are fingerprinted too: same subject ids may come from different runs (imagery vs execution)
+    fp = {sid: [int(r.n_times), [str(x) for x in r.filenames],
+                hashlib.md5(r.get_data(start=0, stop=min(r.n_times, 1600)).tobytes()).hexdigest()]
+          for sid, r in sorted(raw.items())}
+    key = hashlib.md5(json.dumps([fp, band, tmin, tmax, normalization, channels]).encode()).hexdigest()[:10]
     f = Path(cache_dir) / f"epochs_{key}.npz" if cache_dir else None
     first = next(iter(raw.values()))
     ch_names = list(first.ch_names) if channels is None else list(channels)  # MNE pick() keeps the given order

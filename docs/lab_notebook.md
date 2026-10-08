@@ -189,6 +189,12 @@ Obserwacje:
 Stan: użytkownik przegląda i waliduje cały dodany kod przed dalszymi biegami
 (mapa zmian i kolejność przeglądu: README, sekcja "Zmiany do przeglądu").
 
+### Plan: ruch wykonywany (2026-10-09)
+Te same kontrole na przebiegach z ruchem (R03/R07/R11, lewa/prawa pięść), osobne configi `configs/mm_*.yaml`
+i katalogi `results/mm_*` (wyniki MI nienaruszone): stare ustawienie 64 kan. 0,5-45 Hz, F7/F8 < 4 Hz,
+benchmark po regresji (7-30 Hz i 0,5-45 Hz, 0,5-4 s), kontrola 0,5-4 Hz bez/po regresji.
+Uruchomienie: `nohup bash scripts/run_movement_check.sh > movement_check.log 2>&1 &` → `results/movement_summary.txt`.
+
 ## 5. Moje błędy w trakcie (do pamiętania)
 
 - Twierdziłem, że `BAD_SUBJECTS` nie istnieje (istniało).
@@ -203,6 +209,9 @@ Stan: użytkownik przegląda i waliduje cały dodany kod przed dalszymi biegami
   (MNE `pick`). Na klasyfikację bez wpływu (dotyczyło tylko metadanych przy podzbiorach kanałów);
   naprawione przed regresją EOG, która wymaga poprawnych nazw.
 
+- Klucz cache epok nie zawierał przebiegów (tylko id osób i ustawienia): ruch i wyobrażenie z tymi samymi
+  ustawieniami trafiłyby w ten sam plik. Wcześniejszych wyników nie dotyczy (wszystkie na R04/R08/R12);
+  naprawione przed biegiem ruchu (odcisk nagrania w kluczu, test).
 - Regresja EOG była wykonywana PO normalizacji; przy EA to błąd (EA miesza kanały). Od commitu
   z `scripts/run_mi_check.sh` regresja idzie na surowych epokach, normalizacja po niej. Wynik
   `legacy_eye_motor_regressed` (69,3%) policzony jeszcze starą kolejnością (zscore przed regresją;

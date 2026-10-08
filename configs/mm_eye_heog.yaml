@@ -1,0 +1,24 @@
+# Motor EXECUTION (R03/R07/R11) mirror of legacy_eye_heog. Horizontal-EOG proxy: only F7/F8 at 0.5-4 Hz; heog_lda = LDA on binned F7-F8. ~80% here means gaze, not motor imagery.
+# Run: python scripts/run_benchmark.py --config configs/mm_eye_heog.yaml --out results/mm_eye_heog
+seed: 0
+data:
+  data_dir: null              # local PhysioNet directory with S###R##.edf; null = kagglehub
+  runs: ["R03", "R07", "R11"] # motor EXECUTION left/right fist (T1/T2)
+  sfreq: 160.0
+  exclude: "none"        # legacy results were obtained without removing subjects      # none | koellod2023 | extended | legacy | [ids]
+  cache_dir: "cache"
+preprocessing:
+  band: [0.5, 4.0]
+  tmin: 0.0
+  tmax: 4.0
+  channels: ["F7..", "F8.."]
+eval:
+  n_outer: 5                  # outer N-LNSO folds; each subject tested exactly once
+  val_frac: 0.15              # inner validation subjects drawn from training pool
+  seeds: [0, 1, 2]            # averaged per subject BEFORE any statistics
+  epochs: 50
+  grid:
+    - [heog_lda, none]
+    - [heog_lda, zscore_subject_channel]
+    - [eegnet, zscore_subject_channel]
+  reference: "heog_lda|none"

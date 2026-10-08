@@ -60,3 +60,21 @@ def test_build_epochs_regresses_before_normalizing():
     with pytest.raises(ValueError):
         build_epochs({"001": raw}, (0.5, 40.0), 0.0, 4.0, "exp_moving_standardization",
                      channels=["C3..", "F7.."], eog_regress=["F7.."])
+
+
+def test_epoch_cache_distinguishes_recordings_with_same_subject_ids(tmp_path):
+    """Imagery (R04/R08/R12) and execution (R03/R07/R11) runs share subject ids and settings;
+    the cache must not hand back the other task's epochs."""
+    import mne
+    from src.eval.data import build_epochs
+
+    def raw(level):
+        r = mne.io.RawArray(np.full((2, 160 * 40), level), mne.create_info(["C3..", "C4.."], 160.0, "eeg"),
+                            verbose=False)
+        r.set_annotations(mne.Annotations([2, 10, 18, 26], 4.0, ["T1", "T2", "T1", "T2"]))
+        return r
+
+    kw = dict(band=(0.0, 79.0), tmin=0.0, tmax=4.0, cache_dir=str(tmp_path))
+    Xa = build_epochs({"001": raw(1.0)}, **kw)[0]
+    Xb = build_epochs({"001": raw(3.0)}, **kw)[0]
+    assert not np.allclose(Xa, Xb)
