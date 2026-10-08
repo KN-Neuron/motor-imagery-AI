@@ -16,7 +16,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from scripts.run_benchmark import git_hash  # noqa: E402
 from src.eval.data import build_epochs, load_raw  # noqa: E402
-from src.eval.pipelines import SklearnPipeline, eegnet, shallow  # noqa: E402
+from src.eval.pipelines import SklearnPipeline, eegnet, eegnet_transformer, shallow  # noqa: E402
 from src.eval.resume import cfg_hash, run_or_load  # noqa: E402
 from src.eval.tuning import run_nlnso_tuned, sample_grid  # noqa: E402
 from src.utils import set_seeds  # noqa: E402
@@ -29,6 +29,7 @@ def factories(epochs):
     return {
         "eegnet": lambda p: eegnet(False, epochs=epochs, **p),
         "shallow": lambda p: shallow(epochs=epochs, **p),
+        "eegnet_transformer": lambda p: eegnet_transformer(epochs=epochs, **p),
         "csp_lda": lambda p: (lambda seed: SklearnPipeline("csp_lda", seed, **p)),
         "ts_lr": lambda p: (lambda seed: SklearnPipeline("ts_lr", seed, **p)),
     }

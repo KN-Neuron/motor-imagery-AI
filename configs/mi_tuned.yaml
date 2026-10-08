@@ -46,3 +46,8 @@ eval:
       n_candidates: 99
       default: {lr: 0.001, drop_prob: 0.5, n_filters: 40}
       grid: {lr: [0.001, 0.0005], drop_prob: [0.25, 0.5], n_filters: [20, 40]}
+    - name: eegnet_transformer   # src/models/eegnet_transformer.py; default = the author's settings
+      normalization: zscore_subject_channel
+      n_candidates: 99
+      default: {lr: 0.001, dropout: 0.5, num_layers: 2}
+      grid: {lr: [0.001, 0.0005], dropout: [0.25, 0.5], num_layers: [1, 2]}

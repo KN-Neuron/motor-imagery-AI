@@ -86,6 +86,14 @@ def eegnet(max_norm: bool, f1=8, d=2, temp_kernel=80, dropout_rate=0.5, **kw):
     return lambda seed: TorchPipeline(build, seed=seed, **kw)
 
 
+def eegnet_transformer(F1=8, D=2, d_model=32, nhead=4, num_layers=2, dropout=0.5, **kw):
+    from src.models.eegnet_transformer import SpatialEEGNetTransformer
+    return lambda seed: TorchPipeline(
+        lambda c, k, t: SpatialEEGNetTransformer(n_classes=k, channels=c, samples=t, F1=F1, D=D, d_model=d_model,
+                                                 nhead=nhead, num_layers=num_layers, dropout=dropout),
+        seed=seed, **kw)
+
+
 def shallow(n_filters=40, drop_prob=0.5, **kw):
     from braindecode.models import ShallowFBCSPNet
     return lambda seed: TorchPipeline(
@@ -156,6 +164,7 @@ def make_registry(epochs: int = 50, device=None) -> dict:
         "eegnet": eegnet(False, **kw),
         "eegnet_maxnorm": eegnet(True, **kw),
         "shallow": shallow(**kw),
+        "eegnet_transformer": eegnet_transformer(**kw),
         "deep": deep(**kw),
         "csp_lda": lambda seed: SklearnPipeline("csp_lda", seed),
         "ts_lr": lambda seed: SklearnPipeline("ts_lr", seed),

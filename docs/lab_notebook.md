@@ -141,6 +141,18 @@ Obserwacje:
    kanały ruchowe, 7-30 Hz, 0,5-4 s, po regresji EOG: 66,7 [64,2; 69,2])**. Kandydat na główny
    benchmark: `mi_reg_mu_beta_nocue` (najbardziej zachowawczy: bez cue, bez niskich częstotliwości,
    bez kanałów czołowych). Różnica 83,5 → 66,7 to górne oszacowanie udziału oczu i bodźca.
+7. Wnioski z regresji EOG (3.6, 3.7):
+   - Ograniczenie do kanałów ruchowych NIE usuwa oczu: potencjały oczne rozchodzą się po głowie
+     (motor21 w 0,5-45 Hz: 81%, w 0,5-4 Hz: 80,8%, prawie tyle co 64 kanały).
+   - Regresja per osoba, bez etykiet, na 6 kanałach przyocznych (Fp1, Fp2, AF7, AF8, F7, F8 jako
+     zastępcze EOG) usuwa większość tego przecieku: 0,5-4 Hz na kanałach ruchowych 80,8 → 62,1%.
+   - W 7-30 Hz regresja nie zmienia wyniku (68,4 → 68,8%): tam ochronę dają pasmo i dobór kanałów,
+     regresja jest zabezpieczeniem i nie zabiera sygnału MI.
+   - Ograniczenia: tylko liniowa; kanały czołowe zawierają też aktywność mózgu (może być częściowo
+     usunięta); brak prawdziwego EOG w EEGMMIDB; resztkowe 62% w 0,5-4 Hz nierozstrzygnięte
+     (oczy albo wolne potencjały ruchowe).
+   - Dla publikacji: każdy wynik L/R na EEGMMIDB bez kontroli oczu jest podejrzany; kontrola =
+     regresja + test samego F7-F8 (77% z LDA na jednej cesze).
 
 ### Plan dalej (uzgodnić po przeglądzie kodu)
 1. Nowy główny benchmark MI: kanały ruchowe + regresja EOG; porównać pasmo 7-30 vs 0,5-45 Hz i okno,
@@ -185,6 +197,9 @@ Stan: użytkownik przegląda i waliduje cały dodany kod przed dalszymi biegami
   Kandydaci: EEGNet 40 losowych z 288 kombinacji siatki ze starego `train.py` (+ domyślny),
   Shallow 8, CSP n_components 5, TS+LR C 4. Wybór na ok. 25 osobach na grupę: spodziewany zysk mały,
   szum wyboru porównywalny z różnicami między kandydatami.
+- Dodana sieć autora `SpatialEEGNetTransformer` (`src/models/eegnet_transformer.py`, w rejestrze jako
+  `eegnet_transformer`, w biegu nocnym 8 kandydatów: lr, dropout, num_layers). Poprawka względem szkicu:
+  liczba tokenów z próbnego przejścia (oryginał wysypywał się np. dla T=639; dla naszego T=561 działał).
 - Rezydualne 62% w 0,5-4 Hz po regresji: oczy czy wolne potencjały ruchowe? Nierozstrzygnięte.
 - Commity d4e813f..0423ad0 mają linię Co-Authored-By; użytkownik nie chce jej nigdy. Przepisanie historii wymaga force pusha (decyzja użytkownika).
 - Poprawki: guard sprawdzający nazwę normalizacji; usunąć k=40; `normalize` w starych configach.

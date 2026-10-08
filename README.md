@@ -307,7 +307,7 @@ Przebieg prac, wszystkie wyniki i popełnione błędy: **`docs/lab_notebook.md`*
 |---|---|
 | `src/eval/nlnso.py` | N-LNSO: podział osób na foldy zewnętrzne + walidacja z puli treningowej; zwraca wyniki per osoba i per próba |
 | `src/eval/data.py` | `load_raw` (dane + wykluczenia z logiem), `build_epochs` (epoki + cache), `regress_out` (regresja EOG per osoba) |
-| `src/eval/pipelines.py` | modele w jednym interfejsie `fit/predict_proba`: EEGNet (± max-norm), Shallow, Deep, CSP+LDA, TS+LR, `heog_lda` |
+| `src/eval/pipelines.py` | modele w jednym interfejsie `fit/predict_proba`: EEGNet (± max-norm), Shallow, Deep, CSP+LDA, TS+LR, `heog_lda`, `eegnet_transformer` (`src/models/eegnet_transformer.py`) |
 | `src/eval/stats.py` | bootstrap CI po osobach, próg dwumianowy, Wilcoxon, Holm, liczebność próby |
 | `src/eval/resume.py` | zapis skończonych par (model, normalizacja) i wznawianie |
 | `src/eval/tuning.py` | strojenie hiperparametrów w wewnętrznej pętli N-LNSO: k-fold po osobach treningowych, wybór, refit, test raz |
