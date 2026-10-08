@@ -243,6 +243,43 @@ podziale segmentów, spadek do poziomu ok. 50-67% (2 klasy) / znacznie niżej dl
 Do sekcji "related work": przykład zawyżonych wyników na EEGMMIDB przy podziale nieopisanym / nie po osobach;
 nasz wkład = ile zostaje przy podziale po osobach (ok. 67%) i ile dają oczy (83,5 → 67).
 
+Dodatkowo: ich "accuracy" to (TP+TN)/N liczone per klasa i uśrednione (wzór (8) w pracy), czyli
+dokładność jeden-kontra-reszta; przy 5 klasach zawyża (80% zwykłej → 92% ich miary).
+
+#### Replikacja (2026-10-08, branch `replication-bouchane`, commit a48f31b)
+Kod: `src/replication/bouchane.py`, `scripts/run_replication.sh`, `configs/replication_bouchane.yaml`.
+Ich model (CNN-GRU, Tabela 2), 8-30 Hz, z-score w osobie, pary SMA E jako osobne przykłady, SMOTE tylko na
+treningu, wykluczenia jak w pracy (103 osoby); 7 osób = pierwsze 7 (praca nie mówi które). Jeden seed.
+Kolumny: acc = zwykła dokładność (przykłady = pary), bal = dokładność zbalansowana (szansa 20% / 50%),
+ovr = ich miara, major = udział klasy większościowej (baseline B).
+
+| eksperyment | N | zadanie | podział | acc | bal | ovr |
+|---|---|---|---|---|---|---|
+| paper7_random | 7 | 5 klas | losowe przykłady | **73,9** | **80,4** | **89,6** |
+| paper7_trial | 7 | 5 klas | całe próby, te same osoby | 15,2 | 20,4 | 66,1 |
+| paper7_subject | 7 | 5 klas | po osobach | 16,6 | 20,6 | 66,6 |
+| all_random | 103 | 5 klas | losowe przykłady | 39,7 | 36,8 | 75,9 |
+| all_trial | 103 | 5 klas | całe próby | 36,5 | 25,6 | 74,6 |
+| all_subject | 103 | 5 klas | po osobach | 33,9 | 23,9 | 73,6 |
+| all_random_lr | 103 | L/R | losowe przykłady | 70,5 | 70,5 | 70,5 |
+| all_subject_lr | 103 | L/R | po osobach | 49,8 | 49,8 | 49,8 |
+
+Wnioski:
+- Nie odtworzyliśmy 99%; najbliżej ich ustawienia (7 osób, losowy podział przykładów) jest 73,9% (ich miarą 89,6%).
+  Różnica może wynikać z rzeczy nieopisanych w pracy (podział, ICA, segmentacja, hiperparametry).
+- Kluczowe: na 7 osobach cały wynik powyżej szansy pochodzi z wycieku między parami kanałów tej samej próby.
+  Gdy wszystkie pary próby są w jednym zbiorze, dokładność zbalansowana spada z 80,4% do 20,4% (szansa 20%),
+  także bez zmiany osób. Model rozpoznaje próbę, nie zadanie.
+- Ich miara zawyża: model na poziomie szansy (bal 20%) ma 66% w mierze jeden-kontra-reszta.
+- acc poniżej udziału klasy B (50%) przy podziale bez wycieku: SMOTE uczy na zbalansowanych klasach,
+  a test jest w połowie z B; dlatego bal jest właściwą miarą.
+- Na 103 osobach L/R: losowy podział 70,5%, po osobach 49,8% (szansa). Ten model na parach kanałów
+  nie przenosi się na nowe osoby; nasze modele na 21 kanałach dają ok. 67% (3.7).
+- Zastrzeżenie: 49,8% i ok. 20% to dokładnie poziom szansy; nie sprawdziłem, czy trening nie zatrzymał
+  się na wczesnej epoce (wybór najlepszej epoki po stracie walidacyjnej). Przed publikacją: zapisać
+  krzywe uczenia, kilka seedów, sprawdzić, czy model przy podziale po osobach w ogóle się uczy.
+Status: wniosek o wycieku (paper7_random vs paper7_trial) jest mocny; liczby do potwierdzenia na kilku seedach.
+
 ## 5. Moje błędy w trakcie (do pamiętania)
 
 - Twierdziłem, że `BAD_SUBJECTS` nie istnieje (istniało).
