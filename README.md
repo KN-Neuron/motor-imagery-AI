@@ -310,6 +310,7 @@ Przebieg prac, wszystkie wyniki i popełnione błędy: **`docs/lab_notebook.md`*
 | `src/eval/pipelines.py` | modele w jednym interfejsie `fit/predict_proba`: EEGNet (± max-norm), Shallow, Deep, CSP+LDA, TS+LR, `heog_lda` |
 | `src/eval/stats.py` | bootstrap CI po osobach, próg dwumianowy, Wilcoxon, Holm, liczebność próby |
 | `src/eval/resume.py` | zapis skończonych par (model, normalizacja) i wznawianie |
+| `src/eval/tuning.py` | strojenie hiperparametrów w wewnętrznej pętli N-LNSO: k-fold po osobach treningowych, wybór, refit, test raz |
 | `src/data/normalization.py` | normalizacje (zscore, EMS, EA), `PreprocMeta`, `check_compatibility` |
 | `src/data/subjects.py` | presety wykluczeń osób + filtr z logowaniem |
 | `src/data/preprocessing.py`, `loader.py`, `loading.py` | zmiany: parametr `normalization`, EMS na ciągłym sygnale, `find_edf_files`, wykluczenia z configu |
@@ -318,10 +319,12 @@ Przebieg prac, wszystkie wyniki i popełnione błędy: **`docs/lab_notebook.md`*
 | `src/ba/` | moduł BrainAccess (wczytywanie sesji, foldy blokowe, checkpointy z metadanymi, BIDS) |
 | `scripts/run_benchmark.py` | główny bieg: siatka (model, normalizacja) z configu → `per_subject.csv`, `per_trial.csv`, `run_meta.json` |
 | `scripts/run_legacy_check.sh` | jedna komenda do wszystkich wariantów `configs/legacy_*.yaml` + tabela |
+| `scripts/run_tuned.py`, `run_night.sh` | bieg nocny: `configs/mi_tuned.yaml` → `results/mi_tuned` (+ `selection.csv`) |
+| `scripts/run_mi_check.sh` | benchmark MI po regresji EOG + kontrola niskich częstotliwości |
 | `scripts/summarize_results.py` | tabela średnich z CI dla katalogów wyników |
 | `scripts/run_simulations.py`, `make_report.py`, `sanity_check.py`, `power_analysis.py`, `train_pretrained.py` | symulacje, raport `docs/results.md`, sanity check, moc, model do BA |
-| `configs/benchmark.yaml` | główny benchmark; `configs/legacy_*.yaml` = warianty diagnostyczne (pasmo, okno, kanały, oczy) |
-| `tests/` | 64 testy, w tym end-to-end na syntetycznych EDF (`test_scripts_smoke.py`, ok. 90 s) |
+| `configs/benchmark.yaml` | główny benchmark; `configs/legacy_*.yaml` = warianty diagnostyczne (pasmo, okno, kanały, oczy); `configs/mi_*.yaml` = benchmark MI po regresji EOG (`mi_reg_mu_beta_nocue` = kandydat na główny) |
+| `tests/` | ok. 70 testów, w tym end-to-end na syntetycznych EDF (`test_scripts_smoke.py`, ok. 90 s) |
 | `docs/` | `lab_notebook.md`, `research_plan.md`, `related_work.md`, `protocol_eksperymentu.md` |
 | `Makefile` | `make reproduce`, `make test` |
 
@@ -337,9 +340,10 @@ Z innych branchy (nie moje): `src/data/augmentation.py`, notebooki EDA/Hjorth, `
 3. `src/eval/data.py`: wykluczenia, cache, kolejność kanałów, `regress_out`.
 4. `src/data/preprocessing.py`: filtr i epoki (diff względem `pre-rework`).
 5. `src/eval/pipelines.py`: `TorchPipeline.fit` (wybór epoki na walidacji), `HeogLDA`.
-6. `src/eval/stats.py`, `scripts/run_benchmark.py`, `src/eval/resume.py`.
-7. Symulacje (`degradation.py`, `study.py`): znane problemy niżej.
-8. `src/ba/`: nieuruchamiane na prawdziwych danych.
+6. `src/eval/tuning.py` + `tests/test_tuning.py`: czy wybór hiperparametrów nie widzi osób testowych.
+7. `src/eval/stats.py`, `scripts/run_benchmark.py`, `src/eval/resume.py`.
+8. Symulacje (`degradation.py`, `study.py`): znane problemy niżej.
+9. `src/ba/`: nieuruchamiane na prawdziwych danych.
 
 ### Znane problemy (nienaprawione)
 
@@ -356,6 +360,7 @@ Z innych branchy (nie moje): `src/data/augmentation.py`, notebooki EDA/Hjorth, `
 make test                                         # testy
 make reproduce DATA_DIR=/sciezka/do/physionet     # benchmark + symulacje + docs/results.md (bez DATA_DIR: kagglehub)
 nohup bash scripts/run_legacy_check.sh > legacy_check.log 2>&1 &   # warianty diagnostyczne + results/legacy_summary.txt
+nohup bash scripts/run_night.sh > night.log 2>&1 &         # strojenie w N-LNSO + results/night_summary.txt
 ```
 
 # TODO

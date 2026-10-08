@@ -1,0 +1,48 @@
+# Overnight run: mi_reg_mu_beta_nocue data, hyperparameters tuned inside N-LNSO
+# (inner group k-fold over the TRAIN subjects of each outer fold; see src/eval/tuning.py).
+# Run: python scripts/run_tuned.py --config configs/mi_tuned.yaml --out results/mi_tuned
+seed: 0
+data:
+  data_dir: null              # local PhysioNet directory with S###R##.edf; null = kagglehub
+  runs: ["R04", "R08", "R12"] # motor IMAGERY left/right fist (T1/T2)
+  sfreq: 160.0
+  exclude: "none"
+  cache_dir: "cache"
+preprocessing:                # identical to mi_reg_mu_beta_nocue
+  band: [7.0, 30.0]
+  tmin: 0.5
+  tmax: 4.0
+  channels: ["Fc5.", "Fc3.", "Fc1.", "Fcz.", "Fc2.", "Fc4.", "Fc6.", "C5..", "C3..", "C1..", "Cz..", "C2..", "C4..", "C6..", "Cp5.", "Cp3.", "Cp1.", "Cpz.", "Cp2.", "Cp4.", "Cp6.", "Fp1.", "Fp2.", "Af7.", "Af8.", "F7..", "F8.."]
+  eog_regress: ["Fp1.", "Fp2.", "Af7.", "Af8.", "F7..", "F8.."]
+eval:
+  n_outer: 5
+  val_frac: 0.15              # outer validation subjects: checkpoint (best epoch) only
+  seeds: [0, 1, 2]            # final refit per seed; inner selection uses the first seed
+  epochs: 50
+  inner_folds: 3              # selection: train subjects split into 3 groups
+  tuned:                      # cheap ones first; eegnet is the long part
+    - name: csp_lda
+      normalization: euclidean_alignment
+      n_candidates: 99
+      default: {n_components: 6}
+      grid: {n_components: [2, 4, 6, 8, 10]}
+    - name: ts_lr
+      normalization: euclidean_alignment
+      n_candidates: 99
+      default: {C: 1.0}
+      grid: {C: [0.01, 0.1, 1.0, 10.0]}
+    - name: eegnet
+      normalization: zscore_subject_channel
+      n_candidates: 40          # random 40 of the 288-combination grid from the old train.py
+      default: {lr: 0.001, dropout_rate: 0.5, f1: 8, d: 2, temp_kernel: 80}
+      grid:
+        lr: [0.005, 0.001, 0.0005, 0.0001]
+        dropout_rate: [0.25, 0.5]
+        f1: [4, 8, 16]
+        d: [1, 2, 4]
+        temp_kernel: [32, 64, 80, 128]
+    - name: shallow
+      normalization: zscore_subject_channel
+      n_candidates: 99
+      default: {lr: 0.001, drop_prob: 0.5, n_filters: 40}
+      grid: {lr: [0.001, 0.0005], drop_prob: [0.25, 0.5], n_filters: [20, 40]}

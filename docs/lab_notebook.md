@@ -177,8 +177,14 @@ Stan: użytkownik przegląda i waliduje cały dodany kod przed dalszymi biegami
 
 ## 6. Otwarte
 
-- Benchmark MI policzony (3.7); do decyzji użytkownika, czy `mi_reg_mu_beta_nocue` zostaje głównym.
-  Potem strojenie hiperparametrów w wewnętrznej pętli N-LNSO (bieg nocny).
+- Benchmark MI policzony (3.7); użytkownik zatwierdził `mi_reg_mu_beta_nocue` jako główny (2026-10-08).
+- Bieg nocny przygotowany (`scripts/run_night.sh`, `configs/mi_tuned.yaml`, `src/eval/tuning.py`):
+  te same dane co `mi_reg_mu_beta_nocue`; w każdym foldzie zewnętrznym osoby treningowe dzielone na 3 grupy,
+  każdy kandydat uczony na 2 grupach (checkpoint na osobach walidacyjnych foldu), oceniany na trzeciej;
+  najlepszy (średnia dokładność per osoba) uczony na całym treningu, 3 seedy, test raz.
+  Kandydaci: EEGNet 40 losowych z 288 kombinacji siatki ze starego `train.py` (+ domyślny),
+  Shallow 8, CSP n_components 5, TS+LR C 4. Wybór na ok. 25 osobach na grupę: spodziewany zysk mały,
+  szum wyboru porównywalny z różnicami między kandydatami.
 - Rezydualne 62% w 0,5-4 Hz po regresji: oczy czy wolne potencjały ruchowe? Nierozstrzygnięte.
 - Commity d4e813f..0423ad0 mają linię Co-Authored-By; użytkownik nie chce jej nigdy. Przepisanie historii wymaga force pusha (decyzja użytkownika).
 - Poprawki: guard sprawdzający nazwę normalizacji; usunąć k=40; `normalize` w starych configach.

@@ -79,16 +79,18 @@ class TorchPipeline:
         return out.softmax(1).cpu().numpy()
 
 
-def eegnet(max_norm: bool, **kw):
+def eegnet(max_norm: bool, f1=8, d=2, temp_kernel=80, dropout_rate=0.5, **kw):
     def build(c, k, t):
-        return EEGNet(chans=c, classes=k, time_points=t, use_max_norm=max_norm)
+        return EEGNet(chans=c, classes=k, time_points=t, use_max_norm=max_norm, f1=f1, f2=f1 * d, d=d,
+                      temp_kernel=temp_kernel, dropout_rate=dropout_rate)
     return lambda seed: TorchPipeline(build, seed=seed, **kw)
 
 
-def shallow(**kw):
+def shallow(n_filters=40, drop_prob=0.5, **kw):
     from braindecode.models import ShallowFBCSPNet
     return lambda seed: TorchPipeline(
-        lambda c, k, t: ShallowFBCSPNet(n_chans=c, n_outputs=k, n_times=t, final_conv_length="auto"),
+        lambda c, k, t: ShallowFBCSPNet(n_chans=c, n_outputs=k, n_times=t, final_conv_length="auto",
+                                        n_filters_time=n_filters, n_filters_spat=n_filters, drop_prob=drop_prob),
         seed=seed, **kw)
 
 
@@ -102,8 +104,8 @@ def deep(**kw):
 class SklearnPipeline:
     """CSP+LDA or tangent space + LR. Validation data is unused (no checkpoints)."""
 
-    def __init__(self, kind: str, seed: int = 0):
-        self.kind, self.seed = kind, seed
+    def __init__(self, kind: str, seed: int = 0, n_components: int = 6, C: float = 1.0):
+        self.kind, self.seed, self.n_components, self.C = kind, seed, n_components, C
 
     def fit(self, X_tr, y_tr, X_val=None, y_val=None):
         from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
@@ -111,13 +113,13 @@ class SklearnPipeline:
         from sklearn.pipeline import make_pipeline
         if self.kind == "csp_lda":
             from mne.decoding import CSP
-            self.clf = make_pipeline(CSP(n_components=6, reg="ledoit_wolf", log=True),
+            self.clf = make_pipeline(CSP(n_components=self.n_components, reg="ledoit_wolf", log=True),
                                      LinearDiscriminantAnalysis())
         elif self.kind == "ts_lr":
             from pyriemann.estimation import Covariances
             from pyriemann.tangentspace import TangentSpace
             self.clf = make_pipeline(Covariances(estimator="oas"), TangentSpace(metric="riemann"),
-                                     LogisticRegression(max_iter=2000, random_state=self.seed))
+                                     LogisticRegression(C=self.C, max_iter=2000, random_state=self.seed))
         else:
             raise ValueError(self.kind)
         self.clf.fit(X_tr.astype(np.float64), y_tr)

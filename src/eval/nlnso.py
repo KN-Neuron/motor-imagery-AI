@@ -60,6 +60,11 @@ def run_nlnso(
                 log(f"[{name}] fold {fold + 1}/{n_outer} seed {seed} done, {time.time() - t0:.0f}s elapsed")
             for s, yt, p, pr in zip(subjects[m_te], y[m_te], pred, proba[:, -1]):
                 trial_rows.append((name, int(s), fold, seed, int(yt), int(p), float(pr)))
+    return aggregate_trials(trial_rows)
+
+
+def aggregate_trials(trial_rows) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """(name, subject, fold, seed, y, pred, p_last) rows -> (per_subject_df, per_trial_df)."""
     trials = pd.DataFrame(trial_rows, columns=["pipeline", "subject", "fold", "seed", "y", "pred", "p_last"])
     trials["correct"] = (trials.y == trials.pred).astype(int)
     per = (trials.groupby(["pipeline", "subject", "seed"]).agg(

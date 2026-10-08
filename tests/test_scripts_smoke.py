@@ -57,3 +57,32 @@ def test_full_pipeline_on_synthetic_physionet(tmp_path):
     txt = (tmp_path / "docs" / "results.md").read_text()
     for needle in ("Porównanie modeli", "pseudo-BrainAccess", "few-shot", "zeros_midi16", "eegnet|euclidean_alignment", "commit"):
         assert needle in txt, needle
+
+
+def test_tuned_benchmark_on_synthetic_physionet(tmp_path):
+    d = tmp_path / "physionet"
+    for s in range(1, 10):
+        (d / f"S{s:03d}").mkdir(parents=True)
+        for r in ("R04", "R08", "R12"):
+            _write(d / f"S{s:03d}" / f"S{s:03d}{r}.edf", s * 10 + int(r[1:]))
+    cfg = yaml.safe_load(open("configs/mi_tuned.yaml"))
+    motor = [_dotted(c) for c in ("FC3", "FC4", "C3", "Cz", "C4", "CP3", "CP4")]
+    refs = [_dotted(c) for c in ("Fp1", "Fp2", "F7", "F8")]
+    cfg["data"].update(data_dir=str(d), cache_dir=str(tmp_path / "cache"))
+    cfg["preprocessing"].update(channels=motor + refs, eog_regress=refs)
+    cfg["eval"].update(n_outer=3, seeds=[0], epochs=1, inner_folds=2)
+    for t in cfg["eval"]["tuned"]:
+        t["n_candidates"] = 2
+    cf = tmp_path / "cfg.yaml"; yaml.safe_dump(cfg, open(cf, "w"))
+    out = tmp_path / "tuned"
+    for _ in range(2):  # second run must resume from parts without recomputing
+        r = subprocess.run([sys.executable, "scripts/run_tuned.py", "--config", str(cf), "--out", str(out)],
+                           capture_output=True, text=True)
+        assert r.returncode == 0, r.stderr[-1500:]
+    assert "done earlier" in r.stdout
+    import pandas as pd
+    per, sel = pd.read_csv(out / "per_subject.csv"), pd.read_csv(out / "selection.csv")
+    names = {t["name"] for t in cfg["eval"]["tuned"]}
+    assert {p.split("|")[0] for p in per.pipeline} == {f"{n}_tuned" for n in names}
+    assert (per.groupby("pipeline").subject.nunique() == 9).all()
+    assert (sel.groupby(["pipeline", "fold"]).selected.sum() == 1).all()
