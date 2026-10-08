@@ -92,6 +92,35 @@ Few-shot: k=10/20 bez zysku; **k=40 = NaN, błąd projektu** (ok. 22 próby na k
 | legacy_eye_motor_regressed, EEGNet zscore | 0,5-45 | 21 ruchowych po regresji 6 czołowych | **69,3 [67,3; 71,2]** (none: 66,3) |
 | legacy_eye_frontal_mu_beta, EEGNet zscore | 7-30 | 10 czołowych | 77,5 [75,3; 79,7] (none: 66,5) |
 
+### 3.7 Benchmark MI po regresji EOG i kontrola rezydualna (2026-10-08, commit f79cef6, N=106)
+21 kanałów ruchowych, regresja 6 czołowych (Fp1, Fp2, AF7, AF8, F7, F8) per osoba przed normalizacją.
+
+| model | mu_beta 7-30, 0-4 s | mu_beta_nocue 7-30, 0,5-4 s | wb_nocue 0,5-45, 0,5-4 s |
+|---|---|---|---|
+| eegnet zscore | **68,8 [66,3; 71,3]** | **66,7 [64,2; 69,2]** | 67,0 [64,9; 69,2] |
+| eegnet_maxnorm zscore | 68,5 | 66,5 | 66,5 |
+| shallow zscore | 68,0 | 64,1 | 62,9 |
+| csp_lda EA | 67,2 | 66,2 | 57,9 |
+| ts_lr EA | 65,9 | 64,5 | 59,4 |
+| eegnet none | 64,9 | 62,8 | 62,0 |
+
+Kontrola, EEGNet, 21 kanałów ruchowych, 0,5-4 Hz, 0-4 s:
+
+| wariant | zscore | none |
+|---|---|---|
+| bez regresji (`mi_ctrl_lowfreq_raw`) | 80,8 [78,5; 83,0] | 80,2 |
+| po regresji (`mi_ctrl_lowfreq_reg`) | 62,1 [60,4; 63,8] | 62,2 |
+
+Obserwacje:
+- Regresja zabiera większość sygnału poniżej 4 Hz na kanałach ruchowych (80,8 → 62,1), ale nie do 50%.
+  Reszta to albo niedoregresowane oczy (regresja liniowa, 6 referencji), albo wolne potencjały ruchowe;
+  tych dwóch nie da się tu rozdzielić.
+- W 7-30 Hz regresja prawie nic nie zmienia: motor21 bez regresji 68,4 (3.4), po regresji 68,8.
+  Kanały ruchowe w mu/beta raczej nie niosą sygnału ocznego (w przeciwieństwie do czołowych, 77,5%).
+- Usunięcie 0-0,5 s kosztuje ok. 2 pp (68,8 → 66,7), nie 17 pp jak na 64 kanałach.
+- Szerokie pasmo po regresji nie pomaga EEGNet (67,0 vs 66,7), a szkodzi CSP/TS.
+- Modele mieszczą się w ok. 64-69%; różnice w obrębie CI, nie testowane parami.
+
 ## 4. Wnioski robocze (stan na 2026-10-07, po testach oczu)
 
 1. Stary pipeline był poprawny metodologicznie; 84% to nie wyciek ani przypadek.
@@ -108,6 +137,10 @@ Few-shot: k=10/20 bez zysku; **k=40 = NaN, błąd projektu** (ok. 22 próby na k
    ok. 66-69% (może być zaniżone, jeśli regresja zabiera sygnał mózgowy, albo zawyżone, jeśli
    regresja liniowa nie usuwa oczu w całości).
 5. Dla BrainAccess: bodziec w środku ekranu i fiksacja; inaczej model może działać na oczach.
+6. (2026-10-08, po 3.7) Uczciwe oszacowanie MI L/R na EEGMMIDB w N-LNSO: **ok. 67% (EEGNet zscore,
+   kanały ruchowe, 7-30 Hz, 0,5-4 s, po regresji EOG: 66,7 [64,2; 69,2])**. Kandydat na główny
+   benchmark: `mi_reg_mu_beta_nocue` (najbardziej zachowawczy: bez cue, bez niskich częstotliwości,
+   bez kanałów czołowych). Różnica 83,5 → 66,7 to górne oszacowanie udziału oczu i bodźca.
 
 ### Plan dalej (uzgodnić po przeglądzie kodu)
 1. Nowy główny benchmark MI: kanały ruchowe + regresja EOG; porównać pasmo 7-30 vs 0,5-45 Hz i okno,
@@ -144,9 +177,9 @@ Stan: użytkownik przegląda i waliduje cały dodany kod przed dalszymi biegami
 
 ## 6. Otwarte
 
-- Zdefiniować główny benchmark MI na nowo: kanały ruchowe + regresja EOG; sprawdzić pasmo 7-30 vs 0,5-45
-  i okno; dopiero potem strojenie hiperparametrów w wewnętrznej pętli N-LNSO (bieg nocny).
-- Kontrola: czy po regresji z kanałów ruchowych da się jeszcze przewidzieć klasę z samego F7-F8 (rezydualne oczy).
+- Benchmark MI policzony (3.7); do decyzji użytkownika, czy `mi_reg_mu_beta_nocue` zostaje głównym.
+  Potem strojenie hiperparametrów w wewnętrznej pętli N-LNSO (bieg nocny).
+- Rezydualne 62% w 0,5-4 Hz po regresji: oczy czy wolne potencjały ruchowe? Nierozstrzygnięte.
 - Commity d4e813f..0423ad0 mają linię Co-Authored-By; użytkownik nie chce jej nigdy. Przepisanie historii wymaga force pusha (decyzja użytkownika).
 - Poprawki: guard sprawdzający nazwę normalizacji; usunąć k=40; `normalize` w starych configach.
 - Push do `development` na GitHubie zwraca 500; commity idą przez branch `legacy-check`.
