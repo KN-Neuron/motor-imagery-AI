@@ -195,6 +195,35 @@ i katalogi `results/mm_*` (wyniki MI nienaruszone): stare ustawienie 64 kan. 0,5
 benchmark po regresji (7-30 Hz i 0,5-45 Hz, 0,5-4 s), kontrola 0,5-4 Hz bez/po regresji.
 Uruchomienie: `nohup bash scripts/run_movement_check.sh > movement_check.log 2>&1 &` → `results/movement_summary.txt`.
 
+### Literatura: analiza krytyczna Bouchane et al. 2025 (2026-10-09)
+Bouchane M., Guo W., Yang S. *Hybrid CNN-GRU Models for Improved EEG Motor Imagery Classification.*
+Sensors 25(5):1399, 2025. https://www.mdpi.com/1424-8220/25/5/1399 (pełny tekst: PMC11902626).
+Twierdzą: 98,9-99,7% na EEGMMIDB, 5 klas (LF, RF, obie pięści, stopy, baseline), 2 kanały na wejściu, CNN-GRU.
+
+Problemy znalezione w tekście (cytaty dosłowne):
+1. Mała próba, ta sama osoba w treningu i teście: "the model was trained and tested on seven subjects,
+   achieving a macro average accuracy of 98.88%"; per osoba "10-fold cross-validation" w obrębie osoby.
+   Dataset opisany jako 103 osoby, wyniki na 7. U nas: 106 osób, test zawsze na nowych osobach.
+2. Brak opisu podziału trening/test dla głównych tabel (3-4); "each experimental run is divided into
+   4 s segments": przy losowym podziale segmentów sąsiednie fragmenty tej samej próby trafiają do obu zbiorów.
+3. Ta sama próba jako kilka przykładów: "Each SMA is formed by the data related to each channel couple
+   combination and is considered independent from the other couples as a separate input pattern."
+   Jedna próba = 6 przykładów z sąsiednich, silnie skorelowanych par kanałów (FC1-FC2, C1-C2, C3-C4...);
+   para w treningu, sąsiednia para tej samej próby w teście.
+4. Klasy pochodzą z różnych przebiegów (LF/RF z R04/R08/R12, obie pięści/stopy z R06/R10/R14, baseline
+   osobno): przy podziale segmentów model może rozpoznawać nagranie zamiast zadania.
+5. SMOTE deklarowany tylko na treningu ("The validation and test datasets remain unchanged"),
+   nieweryfikowalne bez opisu podziału. Brak kodu (Data Availability: tylko link do PhysioNet).
+6. Oczy: ICA bez szczegółów, ale pasmo 8-30 Hz i kanały ruchowe (u nas analogiczny motor21 7-30 Hz: 68%),
+   więc oczy raczej nie tłumaczą 99%; główne wyjaśnienie to sposób podziału.
+
+Status: analiza tekstu, NIE obalenie empiryczne. Do zrobienia, żeby był to wniosek publikacyjny:
+odtworzyć ich ustawienie (pary kanałów jako osobne przykłady, losowy podział segmentów, 7 osób)
+i to samo z podziałem po osobach (N-LNSO), na tych samych danych. Oczekiwanie: wysoki wynik przy
+podziale segmentów, spadek do poziomu ok. 50-67% (2 klasy) / znacznie niżej dla 5 klas przy podziale po osobach.
+Do sekcji "related work": przykład zawyżonych wyników na EEGMMIDB przy podziale nieopisanym / nie po osobach;
+nasz wkład = ile zostaje przy podziale po osobach (ok. 67%) i ile dają oczy (83,5 → 67).
+
 ## 5. Moje błędy w trakcie (do pamiętania)
 
 - Twierdziłem, że `BAD_SUBJECTS` nie istnieje (istniało).
