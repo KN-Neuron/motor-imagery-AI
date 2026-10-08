@@ -121,6 +121,27 @@ Obserwacje:
 - Szerokie pasmo po regresji nie pomaga EEGNet (67,0 vs 66,7), a szkodzi CSP/TS.
 - Modele mieszczą się w ok. 64-69%; różnice w obrębie CI, nie testowane parami.
 
+### 3.8 Bieg nocny: strojenie hiperparametrów w N-LNSO (2026-10-09, `configs/mi_tuned.yaml`, N=106)
+Dane jak `mi_reg_mu_beta_nocue`; wybór na 3 grupach osób treningowych w każdym foldzie zewnętrznym.
+
+| model | stałe hiperparametry (3.7) | po strojeniu |
+|---|---|---|
+| EEGNet zscore (40 z 288) | 66,7 [64,2; 69,2] | 66,6 [64,1; 69,1] |
+| CSP+LDA EA (n_components) | 66,2 | 66,4 [63,5; 69,4] |
+| TS+LR EA (C) | 64,5 | 65,7 [62,8; 68,7] |
+| Shallow zscore (8) | 64,1 | 64,4 [62,0; 66,7] |
+| SpatialEEGNetTransformer zscore (8) | (brak) | 63,9 [61,5; 66,4] |
+
+Obserwacje:
+- Strojenie nic nie daje (zmiany od -0,1 do +1,2 pp, w obrębie CI).
+- Wybory EEGNet są niestabilne między foldami (np. f1 4 albo 16, lr 0,001 albo 0,005, jądro 32 albo 128)
+  przy bardzo podobnych wynikach wewnętrznych (0,645-0,687): powierzchnia wyników jest płaska, a różnice
+  między foldami wynikają z osób, nie z hiperparametrów.
+- Transformer jest najsłabszy, a jego wyniki wewnętrzne mają największy rozrzut (0,567-0,649),
+  co wskazuje na niestabilny trening przy ok. 3300 próbach treningowych. Różnicy względem EEGNet nie testowałem parami.
+- Wniosek: górna granica ok. 66-67% wynika z danych (MI L/R między osobami na EEGMMIDB po usunięciu oczu),
+  nie z wyboru modelu ani hiperparametrów.
+
 ## 4. Wnioski robocze (stan na 2026-10-07, po testach oczu)
 
 1. Stary pipeline był poprawny metodologicznie; 84% to nie wyciek ani przypadek.
