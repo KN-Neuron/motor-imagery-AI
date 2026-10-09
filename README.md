@@ -321,10 +321,13 @@ Przebieg prac, wszystkie wyniki i popełnione błędy: **`docs/lab_notebook.md`*
 | `scripts/run_legacy_check.sh` | jedna komenda do wszystkich wariantów `configs/legacy_*.yaml` + tabela |
 | `scripts/run_tuned.py`, `run_night.sh` | bieg nocny: `configs/mi_tuned.yaml` → `results/mi_tuned` (+ `selection.csv`) |
 | `scripts/run_mi_check.sh` | benchmark MI po regresji EOG + kontrola niskich częstotliwości |
+| `scripts/run_all.sh` | **wszystko od zera** do `results/final`: biegi, krzywe uczenia (`history.csv`), logi, środowisko, `figures/`, `REPORT.md` |
+| `scripts/make_figures.py` | wykresy i `REPORT.md` dla całego drzewa wyników |
+| `src/replication/`, `scripts/run_replication_bouchane.py` | replikacja Bouchane et al. 2025 (3 sposoby podziału, kilka seedów) |
 | `scripts/summarize_results.py` | tabela średnich z CI dla katalogów wyników |
 | `scripts/run_simulations.py`, `make_report.py`, `sanity_check.py`, `power_analysis.py`, `train_pretrained.py` | symulacje, raport `docs/results.md`, sanity check, moc, model do BA |
 | `configs/benchmark.yaml` | główny benchmark; `configs/legacy_*.yaml` = warianty diagnostyczne (pasmo, okno, kanały, oczy); `configs/mi_*.yaml` = benchmark MI po regresji EOG (`mi_reg_mu_beta_nocue` = kandydat na główny) |
-| `tests/` | ok. 70 testów, w tym end-to-end na syntetycznych EDF (`test_scripts_smoke.py`, ok. 90 s) |
+| `tests/` | 90 testów, w tym end-to-end na syntetycznych EDF (`test_scripts_smoke.py`, ok. 90 s) |
 | `docs/` | `lab_notebook.md`, `research_plan.md`, `related_work.md`, `protocol_eksperymentu.md` |
 | `Makefile` | `make reproduce`, `make test` |
 
@@ -361,6 +364,7 @@ make test                                         # testy
 make reproduce DATA_DIR=/sciezka/do/physionet     # benchmark + symulacje + docs/results.md (bez DATA_DIR: kagglehub)
 nohup bash scripts/run_legacy_check.sh > legacy_check.log 2>&1 &   # warianty diagnostyczne + results/legacy_summary.txt
 nohup bash scripts/run_night.sh > night.log 2>&1 &         # strojenie w N-LNSO + results/night_summary.txt
+nohup bash scripts/run_all.sh > run_all.log 2>&1 &          # wszystko od zera + wykresy + results/final/REPORT.md
 ```
 
 # TODO

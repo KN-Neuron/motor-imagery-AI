@@ -20,7 +20,7 @@ from typing import Callable
 import numpy as np
 import pandas as pd
 
-from src.eval.nlnso import aggregate_trials, nlnso_splits
+from src.eval.nlnso import aggregate_trials, collect_history, nlnso_splits
 
 
 def sample_grid(grid: dict, n: int, seed: int = 0, default: dict | None = None) -> list[dict]:
@@ -50,7 +50,7 @@ def run_nlnso_tuned(
     X: np.ndarray, y: np.ndarray, subjects: np.ndarray,
     make_from_params: Callable[[dict], Callable[[int], object]], candidates: list[dict], name: str,
     n_outer: int = 5, seeds=(0,), val_frac: float = 0.15, split_seed: int = 0, inner_folds: int = 3,
-    cache: str | Path | None = None, log: Callable[[str], None] | None = None,
+    cache: str | Path | None = None, log: Callable[[str], None] | None = None, history: list | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Returns (per_subject_df, per_trial_df, selection_df). ``cache``: CSV of inner scores,
     appended after every inner fit so an interrupted run resumes where it stopped."""
@@ -97,6 +97,8 @@ def run_nlnso_tuned(
             pipe = make_from_params(candidates[best])(seed)
             pipe.fit(X[m_tr], y[m_tr], X[m_va], y[m_va])
             proba = pipe.predict_proba(X[m_te])  # test used once, after selection
+            if history is not None:  # curves of the final refits only
+                collect_history(history, pipe, pipeline=name, fold=fold, seed=seed, params=keys[best])
             for s, yt, p, pr in zip(subjects[m_te], y[m_te], proba.argmax(1), proba[:, -1]):
                 trial_rows.append((name, int(s), fold, seed, int(yt), int(p), float(pr)))
     per, trials = aggregate_trials(trial_rows)

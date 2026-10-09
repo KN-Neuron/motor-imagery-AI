@@ -9,6 +9,7 @@ from __future__ import annotations
 import copy
 
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 
@@ -53,23 +54,33 @@ class TorchPipeline:
         Xt, yt = self._t(X_tr), torch.as_tensor(y_tr, dtype=torch.long)
         g = torch.Generator().manual_seed(self.seed)
         best, best_state = (np.inf, 0.0), None
-        for _ in range(self.epochs):
+        hist = []
+        for ep in range(self.epochs):
             self.model.train()
+            tl, tc, tn = 0.0, 0, 0
             for idx in torch.randperm(len(Xt), generator=g).split(self.bs):
                 if len(idx) < 2:
                     continue
-                loss = nn.functional.cross_entropy(self.model(Xt[idx].to(self.device)), yt[idx].to(self.device))
+                out = self.model(Xt[idx].to(self.device))
+                yb = yt[idx].to(self.device)
+                loss = nn.functional.cross_entropy(out, yb)
                 opt.zero_grad()
                 loss.backward()
                 opt.step()
                 if hasattr(self.model, "apply_max_norm"):
                     self.model.apply_max_norm()
+                tl += loss.item() * len(idx); tc += (out.argmax(1) == yb).sum().item(); tn += len(idx)
+            lr = opt.param_groups[0]["lr"]
             sched.step()
             vl, va = self._eval(X_val, y_val)
+            hist.append(dict(epoch=ep, train_loss=tl / max(tn, 1), train_acc=tc / max(tn, 1),
+                             val_loss=vl, val_acc=va, lr=lr))
             if (vl, -va) < (best[0], -best[1]):
                 best, best_state = (vl, va), copy.deepcopy(self.model.state_dict())
+                self.best_epoch_ = ep
         self.model.load_state_dict(best_state)
         self.val_loss_, self.val_acc_ = best
+        self.history_ = pd.DataFrame(hist)  # per-epoch curves (train metrics are running means over the epoch)
         return self
 
     def predict_proba(self, X):

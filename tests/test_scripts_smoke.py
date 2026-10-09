@@ -54,6 +54,10 @@ def test_full_pipeline_on_synthetic_physionet(tmp_path):
         "--trials", str(tmp_path / "main" / "per_trial.csv"))
     run("scripts/make_report.py", "--main", str(tmp_path / "main"), "--sim", str(tmp_path / "sim"),
         "--out", str(tmp_path / "docs" / "results.md"))
+    import pandas as pd
+    hist = pd.read_csv(tmp_path / "main" / "history.csv")
+    assert set(hist.pipeline) == {"eegnet|euclidean_alignment"}           # torch models only
+    assert {"epoch", "train_loss", "val_loss", "val_acc", "best_epoch", "fold", "seed"} <= set(hist.columns)
     txt = (tmp_path / "docs" / "results.md").read_text()
     for needle in ("Porównanie modeli", "pseudo-BrainAccess", "few-shot", "zeros_midi16", "eegnet|euclidean_alignment", "commit"):
         assert needle in txt, needle
@@ -86,3 +90,7 @@ def test_tuned_benchmark_on_synthetic_physionet(tmp_path):
     assert {p.split("|")[0] for p in per.pipeline} == {f"{n}_tuned" for n in names}
     assert (per.groupby("pipeline").subject.nunique() == 9).all()
     assert (sel.groupby(["pipeline", "fold"]).selected.sum() == 1).all()
+    hist = pd.read_csv(out / "history.csv")
+    torch_models = {f"{t['name']}_tuned|{t['normalization']}" for t in cfg["eval"]["tuned"]
+                    if t["name"] in ("eegnet", "shallow", "eegnet_transformer")}
+    assert set(hist.pipeline) == torch_models and set(hist.fold) == {0, 1, 2}

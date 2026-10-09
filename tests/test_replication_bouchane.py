@@ -101,7 +101,8 @@ def test_script_end_to_end_and_resume(tmp_path):
     _edfs(tmp_path / "physionet", 4)
     cfg = yaml.safe_load(open("configs/replication_bouchane.yaml"))
     cfg["data"].update(data_dir=str(tmp_path / "physionet"), exclude=[])
-    cfg["train"].update(epochs=1)
+    cfg["train"].update(epochs=2)
+    cfg["seeds"] = [0, 1]
     cfg["experiments"] = [dict(name="r_small", subjects=3, task="5class", scheme="random_instance", n_folds=2),
                           dict(name="s_small", subjects=4, task="lr", scheme="subject", n_folds=2)]
     cf = tmp_path / "c.yaml"; yaml.safe_dump(cfg, open(cf, "w"))
@@ -113,3 +114,10 @@ def test_script_end_to_end_and_resume(tmp_path):
     assert "done earlier" in r.stdout
     txt = (out / "summary.txt").read_text()
     assert "r_small" in txt and "s_small" in txt and "ovr" in txt
+    assert "top_pred" in txt and "best_ep" in txt and "seeds" in txt
+    import pandas as pd
+    h = pd.read_csv(out / "history.csv")
+    assert set(h.experiment) == {"r_small", "s_small"} and set(h.seed) == {0, 1}
+    assert {"epoch", "train_loss", "val_loss", "best_epoch", "fold"} <= set(h.columns)
+    tr = pd.concat(pd.read_csv(f) for f in out.glob("r_small_*_trials.csv"))
+    assert set(tr.seed) == {0, 1}

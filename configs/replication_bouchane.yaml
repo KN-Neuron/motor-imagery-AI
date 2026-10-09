@@ -1,6 +1,7 @@
 # Replication of Bouchane et al. 2025 (Sensors 25:1399): same data/model, three split schemes.
 # Run: nohup bash scripts/run_replication.sh > replication.log 2>&1 &
 seed: 0
+seeds: [0, 1, 2]               # each seed = new split + new init; summary gives mean ± sd
 data:
   data_dir: null                 # local PhysioNet directory; null = kagglehub
   exclude: ["038", "088", "089", "092", "100", "104"]   # the paper's list -> 103 subjects

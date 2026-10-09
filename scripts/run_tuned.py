@@ -49,7 +49,7 @@ def main():
     raw = load_raw(cfg["data"])
     pp, ev = cfg["preprocessing"], cfg["eval"]
     fac = factories(ev["epochs"])
-    per_all, trials_all, sel_all = [], [], []
+    per_all, trials_all, sel_all, hist_all = [], [], [], []
     for i, t in enumerate(ev["tuned"], 1):
         label = f"{t['name']}_tuned|{t['normalization']}"
         X, y, s, ch, _ = build_epochs(raw, pp["band"], pp["tmin"], pp["tmax"], t["normalization"],
@@ -61,10 +61,13 @@ def main():
         stem = label.replace("|", "_")
 
         def fn():
+            hist = []
             per, trials, sel = run_nlnso_tuned(
                 X, y, s, fac[t["name"]], cands, label, n_outer=ev["n_outer"], seeds=ev["seeds"],
                 val_frac=ev["val_frac"], split_seed=cfg["seed"], inner_folds=ev["inner_folds"],
-                cache=part / f"{stem}_inner.csv", log=lambda m: print(m, flush=True))
+                cache=part / f"{stem}_inner.csv", log=lambda m: print(m, flush=True), history=hist)
+            if hist:
+                pd.concat(hist).to_csv(part / f"{stem}_history.csv", index=False)
             sel.insert(0, "pipeline", label)
             sel.to_csv(part / f"{stem}_selection.csv", index=False)
             return per, trials
@@ -72,6 +75,9 @@ def main():
         per, trials = run_or_load(out, label, h, fn)
         per_all.append(per); trials_all.append(trials)
         sel_all.append(pd.read_csv(part / f"{stem}_selection.csv"))
+        if (part / f"{stem}_history.csv").exists():
+            hist_all.append(pd.read_csv(part / f"{stem}_history.csv"))
+            pd.concat(hist_all).to_csv(out / "history.csv", index=False)
         pd.concat(per_all).to_csv(out / "per_subject.csv", index=False)
         pd.concat(sel_all).to_csv(out / "selection.csv", index=False)
     pd.concat(trials_all).to_csv(out / "per_trial.csv", index=False)

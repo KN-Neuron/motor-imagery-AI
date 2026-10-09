@@ -16,7 +16,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.eval.data import build_epochs, load_raw  # noqa: E402
 from src.eval.nlnso import run_nlnso  # noqa: E402
-from src.eval.resume import cfg_hash, run_or_load  # noqa: E402
+from src.eval.resume import cfg_hash, part_path, run_or_load  # noqa: E402
 from src.eval.pipelines import make_registry  # noqa: E402
 from src.utils import set_seeds  # noqa: E402
 
@@ -52,7 +52,7 @@ def main():
         raw = dict(sorted(raw.items())[: a.n_subjects])
     pp, ev = cfg["preprocessing"], cfg["eval"]
     reg = make_registry(epochs=ev["epochs"])
-    per_all, trials_all, metas = [], [], {}
+    per_all, trials_all, hist_all, metas = [], [], [], {}
     h = cfg_hash({**cfg, "_n_subjects": a.n_subjects})  # data_dir/n-subjects changes invalidate parts
     n_grid = len(ev["grid"])
     for i, (pipe_name, norm) in enumerate(ev["grid"], 1):
@@ -61,10 +61,22 @@ def main():
                                          pp["channels"], cfg["data"].get("cache_dir"),
                                          eog_regress=pp.get("eog_regress"))
         print(f"=== {i}/{n_grid} {label} X={X.shape}", flush=True)
-        per, trials = run_or_load(out, label, h, lambda: run_nlnso(
-            X, y, s, reg[pipe_name], label, n_outer=ev["n_outer"], seeds=ev["seeds"],
-            val_frac=ev["val_frac"], split_seed=cfg["seed"], log=lambda m: print(m, flush=True)))
+        hp = part_path(out, label, h, "history")
+
+        def fn():
+            hist = []
+            res = run_nlnso(X, y, s, reg[pipe_name], label, n_outer=ev["n_outer"], seeds=ev["seeds"],
+                            val_frac=ev["val_frac"], split_seed=cfg["seed"], log=lambda m: print(m, flush=True),
+                            history=hist)
+            if hist:
+                pd.concat(hist).to_csv(hp, index=False)  # written before per_subject marks the label done
+            return res
+
+        per, trials = run_or_load(out, label, h, fn)
         per_all.append(per); trials_all.append(trials); metas[label] = meta.to_dict()
+        if hp.exists():
+            hist_all.append(pd.read_csv(hp))
+            pd.concat(hist_all).to_csv(out / "history.csv", index=False)
         pd.concat(per_all).to_csv(out / "per_subject.csv", index=False)  # incremental save
     pd.concat(trials_all).to_csv(out / "per_trial.csv", index=False)
     json.dump({"commit": git_hash(), "config": cfg, "preproc_meta": metas}, open(out / "run_meta.json", "w"), indent=2)

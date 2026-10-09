@@ -11,6 +11,13 @@ def cfg_hash(cfg: dict) -> str:
     return hashlib.md5(json.dumps(cfg, sort_keys=True, default=str).encode()).hexdigest()[:8]
 
 
+def part_path(out_dir, label: str, h: str, suffix: str) -> Path:
+    """Path of an extra per-label file (e.g. training history) next to the resumable parts."""
+    d = Path(out_dir) / "parts" / h
+    d.mkdir(parents=True, exist_ok=True)
+    return d / f"{re.sub(r'[^A-Za-z0-9_.-]', '_', label)}_{suffix}.csv"
+
+
 def run_or_load(out_dir, label: str, h: str, fn, log=print):
     """Return fn()'s (per_subject, per_trial); reuse the saved result if this
     label already finished under the same config hash."""

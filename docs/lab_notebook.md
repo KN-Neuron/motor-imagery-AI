@@ -280,6 +280,14 @@ Wnioski:
   krzywe uczenia, kilka seedów, sprawdzić, czy model przy podziale po osobach w ogóle się uczy.
 Status: wniosek o wycieku (paper7_random vs paper7_trial) jest mocny; liczby do potwierdzenia na kilku seedach.
 
+### Pełny przebieg od zera (2026-10-09, `scripts/run_all.sh`)
+Wszystkie configi (mi, mm, legacy, główny benchmark + symulacje, replikacja na 3 seedach, strojenie)
+do `results/final`; każdy model sieciowy zapisuje krzywe uczenia (`history.csv`: strata i dokładność
+treningowa/walidacyjna per epoka, najlepsza epoka); logi per krok, `status.tsv`, środowisko (git, GPU, pip);
+po każdej fazie `summary_all.txt`, `figures/*.png` i `REPORT.md`. Replikacja dostała seedy [0, 1, 2],
+kolumny top_pred (udział najczęściej przewidywanej klasy; 100% = model zawsze mówi to samo) i best_ep
+(mediana najlepszej epoki i ile razy 0), żeby sprawdzić, czy wyniki na poziomie szansy to brak uczenia.
+
 ## 5. Moje błędy w trakcie (do pamiętania)
 
 - Twierdziłem, że `BAD_SUBJECTS` nie istnieje (istniało).
