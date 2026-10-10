@@ -288,6 +288,15 @@ po każdej fazie `summary_all.txt`, `figures/*.png` i `REPORT.md`. Replikacja do
 kolumny top_pred (udział najczęściej przewidywanej klasy; 100% = model zawsze mówi to samo) i best_ep
 (mediana najlepszej epoki i ile razy 0), żeby sprawdzić, czy wyniki na poziomie szansy to brak uczenia.
 
+Wynik (2026-10-10, `results/final/summary_all.txt`, wszystkie biegi policzone od nowa w jednym przebiegu):
+- Wszystkie wcześniejsze liczby odtwarzają się z dokładnością do 0,4 pp (np. główny benchmark 71,4 vs 71,5;
+  legacy_wideband 83,5 vs 83,5; mi_reg_mu_beta_nocue EEGNet 66,6 vs 66,7; mm_reg_mu_beta_nocue TS 69,8 vs 69,8;
+  strojenie EEGNet 66,4 vs 66,6). Różnice to niedeterminizm GPU. Wnioski z sekcji 3-4 bez zmian.
+- `legacy_eye_motor_regressed` policzony już z regresją przed normalizacją: 69,7 (zscore) / 66,0 (none),
+  wcześniej 69,3 / 66,3 przy starej kolejności. Kolejność przy zscore nie miała znaczenia (otwarty punkt zamknięty).
+- Do odczytania: replikacja na 3 seedach (`replication_bouchane/summary.txt`), krzywe uczenia i tabela
+  najlepszych epok w `REPORT.md`.
+
 ## 5. Moje błędy w trakcie (do pamiętania)
 
 - Twierdziłem, że `BAD_SUBJECTS` nie istnieje (istniało).
