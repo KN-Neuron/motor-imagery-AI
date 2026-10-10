@@ -62,7 +62,8 @@ def run_experiment(data, exp, tr_cfg, seeds, history):
         for fold, (tr, va, te) in enumerate(B.splits(exp["scheme"], y, s, t, exp["n_folds"], seed)):
             Xtr, ytr = (B.smote(X[tr], y[tr], 5, seed + fold) if tr_cfg["smote"] else (X[tr], y[tr]))
             pipe = TorchPipeline(lambda c, k, T: B.CNNGRU(n_classes=k, in_ch=c), epochs=tr_cfg["epochs"],
-                                 lr=tr_cfg["lr"], batch_size=tr_cfg["batch_size"], seed=seed)
+                                 lr=tr_cfg["lr"], batch_size=tr_cfg["batch_size"], seed=seed,
+                                 select=tr_cfg.get("select", "loss"))
             pipe.fit(Xtr, ytr, X[va], y[va])
             pred = pipe.predict_proba(X[te]).argmax(1)
             collect_history(history, pipe, experiment=exp["name"], fold=fold, seed=seed)

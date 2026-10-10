@@ -303,8 +303,9 @@ Status: wniosek o wycieku mocny tylko dla L/R na 103 osobach (patrz korekta niż
   nigdy nie przekracza 52,1% (va_ep0 49,5), trening 79,8%: model zapamiętuje, nie przenosi się. Tam walidacja jest
   zbalansowana, więc wybór epoki jest uczciwy. To jest czysty dowód przecieku w ich ustawieniu.
 - Model nie zapada się w jedną klasę (top_pred ok. 28% przy 5 klasach).
-- Naprawa do decyzji: wybór epoki po zbalansowanej dokładności walidacyjnej (albo walidacja po SMOTE) i ponowny
-  bieg samej replikacji (`PHASES="replication"`).
+- Naprawa wprowadzona (2026-10-10): `TorchPipeline(select="bal_acc")`, włączone w `configs/replication_bouchane.yaml`
+  (zmienia hash configu, więc replikacja liczy się od nowa; stare wyniki zostają w katalogu). Bieg: `PHASES="replication"`.
+  Inne biegi nadal wybierają epokę po stracie walidacyjnej (bez zmian).
 - Uboczne: Shallow w głównym benchmarku (4-40 Hz, 0,5-2,5 s, EA) ma medianę najlepszej epoki 1;
   Deep: 4 (3 razy 0). Shallow przy lr 1e-3 przeucza się od razu; jego 65,1% może być zaniżone.
 

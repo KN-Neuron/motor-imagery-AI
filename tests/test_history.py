@@ -38,3 +38,33 @@ def test_sklearn_pipelines_have_no_history():
     hist = []
     run_nlnso(X, y, s, lambda seed: SklearnPipeline("csp_lda", seed), "c", n_outer=3, history=hist)
     assert hist == []
+
+
+def test_select_balanced_accuracy_records_it_and_picks_best_epoch():
+    rng = np.random.RandomState(1)
+    X = rng.randn(120, 4, 64).astype("float32")
+    y = np.r_[np.zeros(20), np.ones(20), np.full(80, 2)].astype(int)   # imbalanced validation set
+    X[y == 1, 0] *= 3
+    from src.eval.pipelines import TorchPipeline
+    from src.models.eegnet import EEGNet
+    pipe = TorchPipeline(lambda c, k, t: EEGNet(chans=c, classes=k, time_points=t), epochs=4, device="cpu",
+                         select="bal_acc")
+    pipe.fit(X, y, X, y)
+    h = pipe.history_
+    assert "val_bal_acc" in h.columns
+    order = h.sort_values(["val_bal_acc", "val_loss"], ascending=[False, True])
+    assert pipe.best_epoch_ == int(order.epoch.iloc[0])
+
+
+def test_balanced_accuracy_helper():
+    from src.eval.pipelines import balanced_accuracy
+    y = np.array([0, 0, 0, 0, 1])
+    assert abs(balanced_accuracy(y, np.zeros(5, int)) - 0.5) < 1e-9      # always class 0: (1 + 0) / 2
+    assert abs(balanced_accuracy(y, y) - 1.0) < 1e-9
+
+
+def test_unknown_select_raises():
+    import pytest
+    from src.eval.pipelines import TorchPipeline
+    with pytest.raises(ValueError):
+        TorchPipeline(lambda c, k, t: None, select="bogus")

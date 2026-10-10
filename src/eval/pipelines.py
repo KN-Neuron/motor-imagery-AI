@@ -22,11 +22,22 @@ def _device():
     return "cpu"
 
 
+def balanced_accuracy(y, pred) -> float:
+    """Mean per-class recall over the classes present in ``y``."""
+    y, pred = np.asarray(y), np.asarray(pred)
+    return float(np.mean([(pred[y == c] == c).mean() for c in np.unique(y)]))
+
+
 class TorchPipeline:
-    """Generic CNN trainer; best epoch picked on validation loss (acc as tiebreak)."""
+    """Generic CNN trainer. Best epoch: lowest validation loss (acc as tiebreak), or with
+    ``select="bal_acc"`` the highest validation balanced accuracy (loss as tiebreak); use the latter
+    when training and validation class priors differ (e.g. SMOTE-balanced training, imbalanced validation)."""
 
     def __init__(self, build, epochs=50, lr=1e-3, batch_size=64, seed=0, weight_decay=0.0,
-                 device=None, max_norm=False):
+                 device=None, max_norm=False, select="loss"):
+        if select not in ("loss", "bal_acc"):
+            raise ValueError(f"select must be 'loss' or 'bal_acc', got {select!r}")
+        self.select = select
         self.build, self.epochs, self.lr, self.bs = build, epochs, lr, batch_size
         self.seed, self.wd, self.max_norm = seed, weight_decay, max_norm
         self.device = device or _device()
@@ -41,6 +52,7 @@ class TorchPipeline:
         with torch.no_grad():
             logits = torch.cat([self.model(xb.to(self.device)) for xb in self._t(X).split(256)])
         yt = torch.as_tensor(y).to(self.device)
+        self._last_bal = balanced_accuracy(yt.cpu().numpy(), logits.argmax(1).cpu().numpy())
         return nn.functional.cross_entropy(logits, yt).item(), (logits.argmax(1) == yt).float().mean().item()
 
     def fit(self, X_tr, y_tr, X_val, y_val):
@@ -53,7 +65,7 @@ class TorchPipeline:
         sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=self.epochs)
         Xt, yt = self._t(X_tr), torch.as_tensor(y_tr, dtype=torch.long)
         g = torch.Generator().manual_seed(self.seed)
-        best, best_state = (np.inf, 0.0), None
+        best, best_state, best_key = (np.inf, 0.0), None, None
         hist = []
         for ep in range(self.epochs):
             self.model.train()
@@ -73,10 +85,12 @@ class TorchPipeline:
             lr = opt.param_groups[0]["lr"]
             sched.step()
             vl, va = self._eval(X_val, y_val)
+            vb = self._last_bal
             hist.append(dict(epoch=ep, train_loss=tl / max(tn, 1), train_acc=tc / max(tn, 1),
-                             val_loss=vl, val_acc=va, lr=lr))
-            if (vl, -va) < (best[0], -best[1]):
-                best, best_state = (vl, va), copy.deepcopy(self.model.state_dict())
+                             val_loss=vl, val_acc=va, val_bal_acc=vb, lr=lr))
+            key = (vl, -va) if self.select == "loss" else (-vb, vl)
+            if best_key is None or key < best_key:
+                best_key, best, best_state = key, (vl, va), copy.deepcopy(self.model.state_dict())
                 self.best_epoch_ = ep
         self.model.load_state_dict(best_state)
         self.val_loss_, self.val_acc_ = best

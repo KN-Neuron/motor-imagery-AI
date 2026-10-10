@@ -10,6 +10,8 @@ train:                           # not given in the paper: Keras-like defaults
   lr: 0.001
   batch_size: 64
   epochs: 40                     # paper: converged in 32-41 epochs; best epoch on validation loss
+  select: bal_acc                # best epoch by validation balanced accuracy (SMOTE-balanced train vs imbalanced val;
+                                 # the first run selected on val loss and always picked epoch 0 without leakage)
   smote: true                    # training part only, as the paper states
 experiments:                     # subjects: first N after exclusion (the paper does not say which 7); null = all
   - {name: paper7_random,   subjects: 7,    task: 5class, scheme: random_instance, n_folds: 10}
