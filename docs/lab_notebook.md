@@ -309,6 +309,29 @@ Status: wniosek o wycieku mocny tylko dla L/R na 103 osobach (patrz korekta niż
 - Uboczne: Shallow w głównym benchmarku (4-40 Hz, 0,5-2,5 s, EA) ma medianę najlepszej epoki 1;
   Deep: 4 (3 razy 0). Shallow przy lr 1e-3 przeucza się od razu; jego 65,1% może być zaniżone.
 
+#### Replikacja po naprawie wyboru epoki (2026-10-11, `select: bal_acc`, 3 seedy, `results/final/replication_bouchane`)
+Ta tabela zastępuje tabelę powyżej (tam wybór epoki po stracie walidacyjnej zaniżał wyniki bez wycieku).
+| eksperyment | acc | bal | ovr | top_pred | najlepsza epoka (ile dopasowań z epoką 0) |
+|---|---|---|---|---|---|
+| paper7_random | 73,6±0,4 | 80,2±0,3 | 89,4±0,2 | 35,8 | 34 (0) |
+| paper7_trial | 23,0±0,1 | 20,9±0,6 | 69,2±0,0 | 25,4 | 8 (4) |
+| paper7_subject | 22,5±1,5 | 20,7±0,9 | 69,0±0,6 | 25,5 | 3 (4) |
+| all_random | 39,2±0,3 | 39,2±0,2 | 75,7±0,1 | 28,8 | 36 (0) |
+| all_trial | 32,2±1,0 | 25,6±0,4 | 72,9±0,4 | 34,0 | 6 (0) |
+| all_subject | 30,9±0,3 | 24,8±0,2 | 72,3±0,1 | 32,5 | 8 (0) |
+| all_random_lr | 69,8±0,4 | 69,8±0,4 | 69,8±0,4 | 52,1 | 35 (0) |
+| all_subject_lr | 51,2±0,7 | 51,3±0,7 | 51,2±0,7 | 53,1 | 11 (0) |
+
+- Wynik z 5 klasami na 7 osobach jest wysoki tylko przy wycieku: bal 80,2% (losowe instancje) vs 20,9%, gdy 6 par kanałów
+  tego samego okna jest po jednej stronie podziału (te same osoby). Podział po osobach: 20,7%. Szansa 20%.
+  Dotychczasowy wniosek o szansie wraca, tym razem z poprawnym wyborem epoki (best_ep 8 i 3, nie 0).
+- L/R na 103 osobach: losowo 69,8%, po osobach 51,2% [50,4; 52,1] przy większości 50,4%.
+- 5 klas na 103 osobach po osobach: bal 24,8%, lekko powyżej 20%. Nie jest to L/R (tam szansa), przypuszczalnie
+  odróżnienie bazy od ruchu; niesprawdzone.
+- ovr zawyża (model na szansie ma ok. 69%), właściwa miara to bal.
+- Zastrzeżenia: nie znamy podziału autorów, replikacja z opisu w pracy (nie z ich kodu). Wynik pokazuje, że takie liczby
+  pojawiają się tylko przy podziale z wyciekiem, nie dowodzi, że ich podział przeciekał.
+
 ### Pełny przebieg od zera (2026-10-09, `scripts/run_all.sh`)
 Wszystkie configi (mi, mm, legacy, główny benchmark + symulacje, replikacja na 3 seedach, strojenie)
 do `results/final`; każdy model sieciowy zapisuje krzywe uczenia (`history.csv`: strata i dokładność
