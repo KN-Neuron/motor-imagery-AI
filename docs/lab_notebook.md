@@ -280,6 +280,27 @@ Wnioski:
   krzywe uczenia, kilka seedów, sprawdzić, czy model przy podziale po osobach w ogóle się uczy.
 Status: wniosek o wycieku (paper7_random vs paper7_trial) jest mocny; liczby do potwierdzenia na kilku seedach.
 
+#### Replikacja na 3 seedach z krzywymi uczenia (2026-10-10, `results/final/replication_bouchane`)
+| eksperyment | acc | bal | ovr | top_pred | najlepsza epoka (ile razy 0) |
+|---|---|---|---|---|---|
+| paper7_random | 73,6±0,3 | 79,6±0,3 | 89,4±0,1 | 36,8 | 34 (0 z 30) |
+| paper7_trial | 15,8±0,0 | 20,5±0,1 | 66,3±0,0 | 27,8 | 0 (29 z 30) |
+| paper7_subject | 17,1±1,3 | 20,2±0,1 | 66,9±0,5 | 27,7 | 0 (21 z 21) |
+| all_random | 40,1±0,3 | 36,6±1,4 | 76,0±0,1 | 34,8 | 25 (0) |
+| all_trial | 35,8±2,0 | 25,4±0,2 | 74,3±0,8 | 43,6 | 4 (1) |
+| all_subject | 36,4±0,3 | 24,2±0,5 | 74,6±0,1 | 48,2 | 2 (3) |
+| all_random_lr | 69,8±0,1 | 69,8±0,1 | 69,8±0,1 | 51,9 | 38 (0) |
+| all_subject_lr | 50,2±0,2 | 50,2±0,2 | 50,2±0,2 | 58,5 | 0 (9 z 15) |
+
+- Wyniki stabilne między seedami (sd ≤ 2 pp); wnioski z 1 seeda potwierdzone.
+- Przy przecieku model poprawia walidację przez 25-38 epok; bez przecieku (7 osób) strata walidacyjna
+  jest najniższa po pierwszej epoce w 50 z 51 dopasowań: dalsze uczenie tylko zapamiętuje próby.
+- Model nie zapada się w jedną klasę (top_pred ok. 28% przy 5 klasach), więc poziom szansy to nie artefakt
+  degeneracji. Do sprawdzenia: czy dokładność walidacyjna (nie tylko strata) też nie rośnie
+  (`scripts/inspect_history.py`, kolumny va_ep0 vs va_max).
+- Uboczne: Shallow w głównym benchmarku (4-40 Hz, 0,5-2,5 s, EA) ma medianę najlepszej epoki 1;
+  Deep: 4 (3 razy 0). Shallow przy lr 1e-3 przeucza się od razu; jego 65,1% może być zaniżone.
+
 ### Pełny przebieg od zera (2026-10-09, `scripts/run_all.sh`)
 Wszystkie configi (mi, mm, legacy, główny benchmark + symulacje, replikacja na 3 seedach, strojenie)
 do `results/final`; każdy model sieciowy zapisuje krzywe uczenia (`history.csv`: strata i dokładność
