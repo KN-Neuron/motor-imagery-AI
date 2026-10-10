@@ -332,6 +332,23 @@ Ta tabela zastępuje tabelę powyżej (tam wybór epoki po stracie walidacyjnej 
 - Zastrzeżenia: nie znamy podziału autorów, replikacja z opisu w pracy (nie z ich kodu). Wynik pokazuje, że takie liczby
   pojawiają się tylko przy podziale z wyciekiem, nie dowodzi, że ich podział przeciekał.
 
+### Ocena `train.py` (schemat 4-way) i nazewnictwo (2026-10-11)
+- `train.py` (stary pipeline autora): podział osób 60/20/10/10 na TRAIN/VAL/DEV/HOLDOUT przed preprocessingiem,
+  etapy 2-6 to siatki z GroupKFold na TRAIN+VAL, etap 8 to jedna ocena na HOLDOUT. Metodologicznie bez wycieku.
+  Wyniki w tej notatce NIE pochodzą z `train.py`; wspólne są modele (`EEGNet`, `ShallowConvNet`, transformer),
+  normalizacja per osoba i preprocessing. Ewaluacja w `src/eval/` (N-LNSO) jest osobna.
+- Różnica w precyzji, nie w wycieku: HOLDOUT 10% osób (ok. 10) jest zaszumiony; przy 20 osobach odpowiada jednemu
+  foldowi N-LNSO (ok. 21 osób). N-LNSO uśrednia 5 takich foldów, każda osoba jest testowana raz przez model,
+  który jej nie widział (5 osobnych modeli, nie jeden model na wszystkich).
+- Wkład `train.py`: siatka 288 kombinacji EEGNet nie dała poprawy (`mi_tuned`, 40 losowych kandydatów z niej, zagnieżdżony
+  wybór) i kosztuje wielokrotnie więcej czasu (hipoteza: powód nocnych biegów; nie profilowane).
+  Do publikacji: protokół N-LNSO + wynik "strojenie nic nie daje"; schemat 4-way opisać jako wcześniejszą wersję
+  pipelinu. `train.py` zostaje w repo, bez statusu archiwalnego, ale nie jest źródłem wyników. Ocena wkładu to moja
+  opinia (budowałem N-LNSO, więc możliwa stronniczość); do potwierdzenia z zespołem.
+- Nazewnictwo: standard to train / validation / test. HOLDOUT = test set; DEV = synonim validation (tu: zbiór wyboru
+  modelu). W tekście nazwać: validation (early stopping), model-selection set, test.
+- Mam rozważyć tryb `holdout` (np. 60/20/10/10 z DEV i HOLDOUT po 20 osób) w `src/eval`; dodam tylko na prośbę.
+
 ### Pełny przebieg od zera (2026-10-09, `scripts/run_all.sh`)
 Wszystkie configi (mi, mm, legacy, główny benchmark + symulacje, replikacja na 3 seedach, strojenie)
 do `results/final`; każdy model sieciowy zapisuje krzywe uczenia (`history.csv`: strata i dokładność
