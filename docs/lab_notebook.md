@@ -278,7 +278,7 @@ Wnioski:
 - Zastrzeżenie: 49,8% i ok. 20% to dokładnie poziom szansy; nie sprawdziłem, czy trening nie zatrzymał
   się na wczesnej epoce (wybór najlepszej epoki po stracie walidacyjnej). Przed publikacją: zapisać
   krzywe uczenia, kilka seedów, sprawdzić, czy model przy podziale po osobach w ogóle się uczy.
-Status: wniosek o wycieku (paper7_random vs paper7_trial) jest mocny; liczby do potwierdzenia na kilku seedach.
+Status: wniosek o wycieku mocny tylko dla L/R na 103 osobach (patrz korekta niżej); dla 5 klas niepotwierdzony.
 
 #### Replikacja na 3 seedach z krzywymi uczenia (2026-10-10, `results/final/replication_bouchane`)
 | eksperyment | acc | bal | ovr | top_pred | najlepsza epoka (ile razy 0) |
@@ -293,11 +293,18 @@ Status: wniosek o wycieku (paper7_random vs paper7_trial) jest mocny; liczby do 
 | all_subject_lr | 50,2±0,2 | 50,2±0,2 | 50,2±0,2 | 58,5 | 0 (9 z 15) |
 
 - Wyniki stabilne między seedami (sd ≤ 2 pp); wnioski z 1 seeda potwierdzone.
-- Przy przecieku model poprawia walidację przez 25-38 epok; bez przecieku (7 osób) strata walidacyjna
-  jest najniższa po pierwszej epoce w 50 z 51 dopasowań: dalsze uczenie tylko zapamiętuje próby.
-- Model nie zapada się w jedną klasę (top_pred ok. 28% przy 5 klasach), więc poziom szansy to nie artefakt
-  degeneracji. Do sprawdzenia: czy dokładność walidacyjna (nie tylko strata) też nie rośnie
-  (`scripts/inspect_history.py`, kolumny va_ep0 vs va_max).
+- KOREKTA (2026-10-10, po `inspect_history.py`): poprzednie dwa wnioski były błędne. W paper7_trial i paper7_subject
+  dokładność walidacyjna ROŚNIE (16 → 32%, va_max 32,5 / 31,8), tylko strata walidacyjna jest najniższa w epoce 0.
+  Powód po mojej stronie: trening idzie na zbiorze po SMOTE (klasy po 20%), a walidacja jest niezbalansowana
+  (B = 50%); strata walidacyjna jako kryterium wyboru epoki premiuje model, który przewiduje B, więc wybiera epokę 0.
+  Liczby 20,5% (bal) dla paper7_trial/subject są więc zaniżone przez wybór checkpointu, NIE dowodzą braku uczenia.
+  Wniosek "bez przecieku wynik spada do szansy" dla 5 klas jest niepotwierdzony.
+- Co się utrzymuje: L/R na 103 osobach. Losowy podział 69,8% vs po osobach 50,2%; dokładność walidacyjna po osobach
+  nigdy nie przekracza 52,1% (va_ep0 49,5), trening 79,8%: model zapamiętuje, nie przenosi się. Tam walidacja jest
+  zbalansowana, więc wybór epoki jest uczciwy. To jest czysty dowód przecieku w ich ustawieniu.
+- Model nie zapada się w jedną klasę (top_pred ok. 28% przy 5 klasach).
+- Naprawa do decyzji: wybór epoki po zbalansowanej dokładności walidacyjnej (albo walidacja po SMOTE) i ponowny
+  bieg samej replikacji (`PHASES="replication"`).
 - Uboczne: Shallow w głównym benchmarku (4-40 Hz, 0,5-2,5 s, EA) ma medianę najlepszej epoki 1;
   Deep: 4 (3 razy 0). Shallow przy lr 1e-3 przeucza się od razu; jego 65,1% może być zaniżone.
 
