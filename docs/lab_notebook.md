@@ -385,8 +385,12 @@ Wynik (2026-10-10, `results/final/summary_all.txt`, wszystkie biegi policzone od
   `eegnet_transformer`, w biegu nocnym 8 kandydatów: lr, dropout, num_layers). Poprawka względem szkicu:
   liczba tokenów z próbnego przejścia (oryginał wysypywał się np. dla T=639; dla naszego T=561 działał).
 - Rezydualne 62% w 0,5-4 Hz po regresji: oczy czy wolne potencjały ruchowe? Nierozstrzygnięte.
-- Commity d4e813f..0423ad0 mają linię Co-Authored-By; użytkownik nie chce jej nigdy. Przepisanie historii wymaga force pusha (decyzja użytkownika).
+- ZAŁATWIONE (2026-10-11): z lokalnych gałęzi usunięto linie Co-Authored-By (git filter-branch, pliki bez zmian),
+  `origin/development` nadpisany force pushem i czysty. Hashe commitów w tej notatce sprzed tej daty (np. f79cef6,
+  d5ade4a, 0423ad0) to stara historia i już nie istnieją; commity rozpoznawać po temacie.
+  `origin/replication-bouchane` miał jeszcze 10 trailerów (do usunięcia, treść jest w `development`).
+- Replikacja Bouchane domknięta (3.x wyżej): bez wycieku poziom losowy, wynik wysoki tylko przy wycieku.
 - Poprawki: guard sprawdzający nazwę normalizacji; usunąć k=40; `normalize` w starych configach.
-- Push do `development` na GitHubie zwraca 500; commity idą przez branch `legacy-check`.
+- Push do `development` na GitHubie zwracał 500 (wcześniej commity szły przez `legacy-check`); force push 2026-10-11 przeszedł.
 - Niezweryfikowane: listy kanałów BrainAccess, część cytowań "do weryfikacji", `poetry.lock`,
   stary `train.py` po zmianach (tylko kompilacja).
