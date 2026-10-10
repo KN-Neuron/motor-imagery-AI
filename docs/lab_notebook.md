@@ -388,7 +388,7 @@ Wynik (2026-10-10, `results/final/summary_all.txt`, wszystkie biegi policzone od
 - ZAŁATWIONE (2026-10-11): z lokalnych gałęzi usunięto linie Co-Authored-By (git filter-branch, pliki bez zmian),
   `origin/development` nadpisany force pushem i czysty. Hashe commitów w tej notatce sprzed tej daty (np. f79cef6,
   d5ade4a, 0423ad0) to stara historia i już nie istnieją; commity rozpoznawać po temacie.
-  `origin/replication-bouchane` miał jeszcze 10 trailerów (do usunięcia, treść jest w `development`).
+  `origin/replication-bouchane` (10 trailerów) usunięty ze zdalnego, treść jest w `development`.
 - Replikacja Bouchane domknięta (3.x wyżej): bez wycieku poziom losowy, wynik wysoki tylko przy wycieku.
 - Poprawki: guard sprawdzający nazwę normalizacji; usunąć k=40; `normalize` w starych configach.
 - Push do `development` na GitHubie zwracał 500 (wcześniej commity szły przez `legacy-check`); force push 2026-10-11 przeszedł.
