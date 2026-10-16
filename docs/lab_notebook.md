@@ -407,6 +407,15 @@ Wynik (2026-10-10, `results/final/summary_all.txt`, wszystkie biegi policzone od
   d5ade4a, 0423ad0) to stara historia i już nie istnieją; commity rozpoznawać po temacie.
   `origin/replication-bouchane` (10 trailerów) usunięty ze zdalnego, treść jest w `development`.
 - Replikacja Bouchane domknięta (3.x wyżej): bez wycieku poziom losowy, wynik wysoki tylko przy wycieku.
+- `train.py` / `src/pipelines/grid_search.py` (znalezione 2026-10-16 w drugiej sesji, potwierdzone drzewem składni): w
+  `run_shallow_grid`, `run_eegnet_grid`, `run_preprocessing_grid`, `run_joint_grid` pętla po kombinacjach nie zawiera CV
+  (wcięcia z refaktoryzacji e7cb662, 21.03.2026), liczona jest tylko ostatnia. Dawne wyniki autora z siatką ok. 288
+  kombinacji (np. `outputs/20260320_141237_binary_all.json`, holdout 84,3%) sa sprzed refaktoryzacji (różne najlepsze
+  konfiguracje w seedach) i nie są dotknięte. Dodatkowo (niezweryfikowane poza engine.py/grid_search.py): CV zapisuje
+  maksimum dokładności po epokach na ocenianym foldzie (optymistyczne Dev Acc), etap 7 dla CSP+ML ignoruje wybrane
+  hiperparametry, docstring `block_folds` jest błędny, `guard_detects` jest z definicji True dla retrain_subset.
+  Brak wpływu na wyniki z `src/eval/`. Do zrobienia przed ponownym użyciem `train.py`: poprawić wcięcia + test (4 kombinacje, 4 ocenione).
+  Wybór konfiguracji (okno, pasmo, kanały, no_cue, regresja EOG) po obejrzeniu N-LNSO: wynik 67% jest eksploracyjny.
 - Poprawki: guard sprawdzający nazwę normalizacji; usunąć k=40; `normalize` w starych configach.
 - Push do `development` na GitHubie zwracał 500 (wcześniej commity szły przez `legacy-check`); force push 2026-10-11 przeszedł.
 - Niezweryfikowane: listy kanałów BrainAccess, część cytowań "do weryfikacji", `poetry.lock`,
