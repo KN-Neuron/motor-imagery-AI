@@ -73,4 +73,4 @@ notebooks/        exploratory notebooks (see notebooks/README.md)
 
 ## License
 
-MIT (see `pyproject.toml`).
+MIT, see [`LICENSE`](LICENSE). Copyright (c) 2026 KN Neuron, Grzegorz Szczepanek.

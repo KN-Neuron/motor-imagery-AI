@@ -392,7 +392,7 @@ Wynik (2026-10-10, `results/final/summary_all.txt`, wszystkie biegi policzone od
 README skrócone do wyników, protokołu i uruchamiania (po angielsku). Przeniesione bez zmian treści: stary opis pipelinu 4-way
 -> `docs/legacy_pipeline.md`, mapa kodu i znane problemy -> `docs/code_review_map.md`, lista zadań -> `docs/TODO.md`.
 Usunięte: `SETUP_SUMMARY.md` (opis innego projektu, Hex-O-Spell). Dodane: `notebooks/README.md` (status notebooków),
-`make all`. Brak pliku LICENSE (MIT zadeklarowane w `pyproject.toml`); `poetry.lock` nieodświeżony.
+`make all`. Dodano `LICENSE` (MIT, KN Neuron i G. Szczepanek, 2026); `poetry.lock` nieodświeżony.
 
 ## 6. Otwarte
 

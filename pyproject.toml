@@ -2,7 +2,7 @@
 name = "motor-imagery-ai"
 version = "0.1.0"
 description = "EEG Motor Imagery classification — EEGNet, CSP+ML, two-stage gating"
-authors = ["KN Neuron <neuron@knneuron.pl>"]
+authors = ["Grzegorz Szczepanek <grzegorzszczepanek48@gmail.com>", "KN Neuron <neuron@knneuron.pl>"]
 license = "MIT"
 packages = [{include = "src"}]
 
