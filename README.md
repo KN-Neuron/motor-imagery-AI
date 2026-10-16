@@ -53,6 +53,19 @@ python train.py --config configs/full_binary_all_channels.yaml   # custom config
 python train_multiple_splits.py --config configs/full_binary_all_channels.yaml --runs 5   # repeated splits
 ```
 
+Example of the final output (5 seeds, run of 2026-03-20). The best configuration differs between seeds, the Dev score is higher than the holdout score:
+
+```
+ Seed  |  Dev Acc   | Holdout Acc  | Best Model
+  42   |   0.9167   |    0.8326    | EEGNet(f1=8,d=2,do=0.25,lr=0.001)
+  43   |   0.8170   |    0.8968    | EEGNet(f1=8,d=2,do=0.5,lr=0.0005)
+  44   |   0.8727   |    0.8197    | EEGNet(f1=8,d=2,do=0.25,lr=0.001)
+  45   |   0.8250   |    0.8374    | EEGNet(f1=16,d=2,do=0.5,lr=0.001)
+  46   |   0.9286   |    0.8286    | EEGNet(f1=8,d=2,do=0.5,lr=0.001)
+MEAN Dev Acc:     0.8720 ± 0.0457
+MEAN Holdout Acc: 0.8430 ± 0.0275
+```
+
 Any field can be overridden with a partial YAML (`data.n_subjects`, `training.epochs`, ...). Usage from a notebook, the data flow, module mapping and a guide to adding a model, a preprocessing step or a stage: [`docs/legacy_pipeline.md`](docs/legacy_pipeline.md).
 
 Known issues of this pipeline (details in [`docs/code_review_map.md`](docs/code_review_map.md)): the grid-search loops had an indentation bug introduced during the March refactoring, fixed and covered by tests; the CV score in the grids is the best accuracy over epochs on the evaluated fold, so Dev accuracy is optimistic (the holdout is not affected); it was not re-run end to end after the refactoring.
