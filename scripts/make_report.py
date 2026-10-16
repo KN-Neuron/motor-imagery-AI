@@ -87,7 +87,7 @@ def main():
               "| trening: normalizacja | degradacja | dokładność | spadek (pp) | CI spadku (pp) | guard |", "|---|---|---|---|---|---|"]
         for _, r in d.iterrows():
             L.append(f"| {r.train_norm} | {r.degradation} | {pct(r.acc)} | {100 * r['drop']:.1f} | "
-                     f"[{100 * r.drop_ci_lo:.1f}, {100 * r.drop_ci_hi:.1f}] | {'tak' if r.guard_detects else 'nie'} |")
+                     f"[{100 * r.drop_ci_lo:.1f}, {100 * r.drop_ci_hi:.1f}] | {'n/d' if pd.isna(r.guard_detects) else ('tak' if r.guard_detects else 'nie')} |")
         L.append("")
     t = sim_dir / "fewshot_per_subject.csv"
     if t.exists():

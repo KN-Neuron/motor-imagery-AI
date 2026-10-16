@@ -106,7 +106,9 @@ def load_all(root: str | Path, meta: PreprocMeta, task_kind: str = "ME", block_s
 
 def block_folds(groups: np.ndarray, n_folds: int = 5):
     """Contiguous, disjoint group folds in recording order. Yields (train_idx, val_idx, test_idx) with
-    val = the block group just before test (adjacent blocks are NOT used for selection AND test)."""
+    val = the LAST groups of the remaining recording (rest[-k:]), not the groups next to test: they are adjacent to
+    test only when test is the final block. Training blocks can neighbour the test block (EEG drifts, so this is
+    mildly optimistic)."""
     ug = np.unique(groups)
     n_folds = min(n_folds, len(ug))
     for te_groups in np.array_split(ug, n_folds):

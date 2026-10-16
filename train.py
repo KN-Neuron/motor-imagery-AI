@@ -542,16 +542,10 @@ def main(config_path: str | None = None, overrides: dict | None = None):
             from sklearn.preprocessing import StandardScaler
             from sklearn.svm import SVC
             X_tv = np.concatenate([X_tr_f, X_vl_f]); y_tv = np.concatenate([y_tr_f, y_vl_f])
+            from src.pipelines.csp_ml import as_params, build_csp_ml_pipeline
             ml_name = best["model_name"].replace("CSP+", "")
-            ml_map = {"LDA": LinearDiscriminantAnalysis(),
-                       "SVM": SVC(probability=True, random_state=42, class_weight="balanced"),
-                       "RandomForest": RandomForestClassifier(random_state=42, class_weight="balanced"),
-                       "KNN": KNeighborsClassifier(),
-                       "GradientBoosting": GradientBoostingClassifier(random_state=42),
-                       "LogisticRegression": LogisticRegression(max_iter=1000, random_state=42, class_weight="balanced"),
-                       "MLP": MLPClassifier(max_iter=500, random_state=42, early_stopping=True)}
-            pipe = Pipeline([("csp", CSP(n_components=6, reg="ledoit_wolf", log=True, norm_trace=False)),
-                              ("scaler", StandardScaler()), ("classifier", ml_map[ml_name])])
+            # the model the CV selected: same pipeline and the hyperparameters it chose (incl. n_components)
+            pipe = build_csp_ml_pipeline(ml_name, task["mode"], as_params(best["best_params"]))
             pipe.fit(X_tv, y_tv)
             ev_preds = pipe.predict(X_ev_f); ev_labels = y_ev_f
 

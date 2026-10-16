@@ -73,7 +73,7 @@ def degradation_study(
                     Xs = norm_all(sub, subjects, tn)
                     p2 = make_pipeline(seed).fit(Xs[m_tr], y[m_tr], Xs[m_va], y[m_va])
                     pred = p2.predict_proba(Xs[m_te]).argmax(1)
-                    detected = True  # channel set differs by construction (guard checks names)
+                    detected = np.nan  # channel set differs by construction; the guard is not evaluated here
                 else:
                     if d["kind"] == "band":
                         src = X_band_variants.get(d["band"])
@@ -105,7 +105,7 @@ def degradation_table(df: pd.DataFrame) -> pd.DataFrame:
         d = (base.loc[a.index] - a).values
         lo, hi = bootstrap_ci(d)
         out.append(dict(train_norm=tn, degradation=dg, acc=a.mean(), drop=d.mean(),
-                        drop_ci_lo=lo, drop_ci_hi=hi, guard_detects=bool(g.detected.all())))
+                        drop_ci_lo=lo, drop_ci_hi=hi, guard_detects=np.nan if g.detected.isna().all() else bool(g.detected.all())))
     return pd.DataFrame(out)
 
 

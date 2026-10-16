@@ -69,7 +69,7 @@ def test_joint_grid_processes_every_preprocessing_row(monkeypatch, tmp_path):
 
     def csp(*a, **k):
         calls["csp"] += 1
-        return [dict(model="LDA", best_cv_acc=0.58)]
+        return [dict(model="LDA", best_cv_acc=0.58, best_params={"csp__n_components": 4})]
 
     monkeypatch.setattr(gs, "run_eegnet_grid", eegnet)
     monkeypatch.setattr(gs, "run_shallow_grid", shallow)
@@ -88,3 +88,24 @@ def test_joint_grid_checkpoint_saved_even_without_shallow(monkeypatch, tmp_path)
     ck = tmp_path / "joint.csv"
     gs.run_joint_grid({}, top, include_csp_ml=False, include_shallow=False, verbose=False, checkpoint_path=ck)
     assert ck.exists() and len(pd.read_csv(ck)) == 1
+
+
+def test_csp_ml_pipeline_uses_selected_hyperparameters():
+    from src.pipelines.csp_ml import as_params, build_csp_ml_pipeline
+    bp = {"classifier__solver": "lsqr", "classifier__shrinkage": "auto", "csp__n_components": 8}
+    pipe = build_csp_ml_pipeline("LDA", "binary", bp)
+    p = pipe.get_params()
+    assert p["csp__n_components"] == 8 and p["classifier__shrinkage"] == "auto" and p["classifier__solver"] == "lsqr"
+    # a checkpoint CSV stores the dict as text: it must round-trip, including tuples and None
+    txt = str({"classifier__hidden_layer_sizes": (64, 32), "classifier__alpha": 0.001, "csp__n_components": 6,
+               "classifier__shrinkage": None})
+    assert as_params(txt)["classifier__hidden_layer_sizes"] == (64, 32) and as_params(bp) == bp
+
+
+def test_joint_grid_keeps_csp_best_params(monkeypatch):
+    monkeypatch.setattr(gs, "epoch_with_params", lambda *a, **k: (np.zeros((4, 2, 8)), np.array([0, 1, 0, 1]), np.arange(4)))
+    monkeypatch.setattr("src.pipelines.csp_ml.run_csp_ml_grid",
+                        lambda *a, **k: [dict(model="SVM", best_cv_acc=0.6, best_params={"classifier__C": 10.0, "csp__n_components": 8})])
+    top = pd.DataFrame([dict(low_freq=4, high_freq=40, tmin=0.5, tmax=2.5, baseline="no")])
+    df = gs.run_joint_grid({}, top, include_eegnet=False, include_shallow=False, verbose=False)
+    assert df.iloc[0]["best_params"] == {"classifier__C": 10.0, "csp__n_components": 8}

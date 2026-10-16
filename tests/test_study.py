@@ -57,6 +57,9 @@ def test_degradation_study_runs_and_guard_flags_scale():
     # volts -> uV with train_norm none: guard must flag it
     g = tab[(tab.train_norm == "none") & (tab.degradation == "scale_uV")]
     assert g.guard_detects.iloc[0]
+    # retrain_subset: channel set differs by construction, the guard is not evaluated -> n/a, not True
+    r = tab[tab.degradation == "subset_sub4_retrained"]
+    assert r.guard_detects.isna().all()
 
 
 def test_fewshot_runs_all_methods():

@@ -466,6 +466,7 @@ def run_joint_grid(
                         "baseline": pp_row["baseline"],
                         "mean_acc": r["best_cv_acc"],
                         "std_acc": 0.0,
+                        "best_params": r["best_params"],
                     })
 
             if include_shallow:

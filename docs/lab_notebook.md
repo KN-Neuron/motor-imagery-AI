@@ -415,7 +415,10 @@ Wynik (2026-10-10, `results/final/summary_all.txt`, wszystkie biegi policzone od
   maksimum dokładności po epokach na ocenianym foldzie (optymistyczne Dev Acc), etap 7 dla CSP+ML ignoruje wybrane
   hiperparametry, docstring `block_folds` jest błędny, `guard_detects` jest z definicji True dla retrain_subset.
   Brak wpływu na wyniki z `src/eval/`. NAPRAWIONE (2026-10-16): wcięcia w czterech pętlach + `tests/test_grid_search.py` (6 testów, przed poprawką padały);
-  checkpoint w `run_joint_grid` zapisuje się teraz też przy `include_shallow=False`. Pozostałe zarzuty z tego wpisu (max po epokach w CV, etap 7 CSP+ML, docstring block_folds, guard_detects) nadal otwarte.
+  checkpoint w `run_joint_grid` zapisuje się teraz też przy `include_shallow=False`. NAPRAWIONE tego samego dnia: etap 7 CSP+ML używa teraz `best_params` z CV (`build_csp_ml_pipeline`, `as_params`;
+  `run_joint_grid` zachowuje `best_params`), `guard_detects` dla `retrain_subset` to n/d (nie „tak"), docstring `block_folds`
+  opisuje faktyczne zachowanie. OTWARTE: CV w `train.py`/siatkach bierze maksimum dokładności po epokach na ocenianym
+  foldzie (patrz niżej: dlaczego Dev Acc jest optymistyczne); wymaga decyzji, jak wybierać epokę.
   Wybór konfiguracji (okno, pasmo, kanały, no_cue, regresja EOG) po obejrzeniu N-LNSO: wynik 67% jest eksploracyjny.
 - Poprawki: guard sprawdzający nazwę normalizacji; usunąć k=40; `normalize` w starych configach.
 - Push do `development` na GitHubie zwracał 500 (wcześniej commity szły przez `legacy-check`); force push 2026-10-11 przeszedł.

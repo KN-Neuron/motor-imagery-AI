@@ -151,6 +151,36 @@ def get_ml_models(task_mode: str = "ternary") -> dict[str, dict[str, Any]]:
     return models
 
 
+def build_csp_ml_pipeline(
+    model_name: str,
+    task_mode: str = "ternary",
+    params: dict[str, Any] | None = None,
+    csp_reg: str = "ledoit_wolf",
+) -> Pipeline:
+    """The CSP -> scaler -> classifier pipeline that run_csp_ml_grid searches over, optionally with the
+    selected hyperparameters (``params``, as returned in ``best_params``) already set."""
+    if task_mode == "binary":
+        csp_step = CSP(n_components=4, reg=csp_reg, log=True, norm_trace=False)
+    else:
+        csp_step = MultiClassCSP(n_components=4, reg=csp_reg)
+    pipe = Pipeline([
+        ("csp", csp_step),
+        ("scaler", StandardScaler()),
+        ("classifier", get_ml_models(task_mode)[model_name]["model"]),
+    ])
+    if params:
+        pipe.set_params(**params)
+    return pipe
+
+
+def as_params(x) -> dict[str, Any]:
+    """best_params as a dict; a checkpoint CSV stores it as the text of a dict (tuples and None included)."""
+    if isinstance(x, dict):
+        return x
+    import ast
+    return ast.literal_eval(x)
+
+
 def run_csp_ml_grid(
     X: np.ndarray,
     y: np.ndarray,
@@ -191,16 +221,7 @@ def run_csp_ml_grid(
         if verbose:
             print(f"\n{'#'*50}\n  {name}\n{'#'*50}")
 
-        if task_mode == "binary":
-            csp_step = CSP(n_components=4, reg=csp_reg, log=True, norm_trace=False)
-        else:
-            csp_step = MultiClassCSP(n_components=4, reg=csp_reg)
-
-        pipe = Pipeline([
-            ("csp", csp_step),
-            ("scaler", StandardScaler()),
-            ("classifier", config["model"]),
-        ])
+        pipe = build_csp_ml_pipeline(name, task_mode, csp_reg=csp_reg)
 
         grid = GridSearchCV(
             pipe,
