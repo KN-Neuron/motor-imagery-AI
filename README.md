@@ -1,8 +1,23 @@
 # Motor imagery (left vs right hand) on EEGMMIDB: cross-subject evaluation without leakage
 
-Developed by **KN Neuron**, Neuroinformatics Student Research Group, Wrocław University of Technology.
+Author: Grzegorz Szczepanek. Developed within **KN Neuron**, Neuroinformatics Student Research Group, Wrocław University of Technology. Contributors: see the git history.
 
 Left/right-hand motor imagery classification on the [PhysioNet EEG Motor Movement/Imagery Dataset](https://physionet.org/content/eegmmidb/1.0.0/) (109 subjects, 64 channels, 160 Hz). The project started from a pipeline reporting 84% and turned into a study of what that number actually measured, under a strict subject-level protocol.
+
+## Results at a glance
+
+Accuracy on unseen subjects, left vs right hand, chance 50%. Brackets: 95% bootstrap CI over subjects.
+
+| # | Experiment | Data | Split | Result |
+|---|---|---|---|---|
+| 1 | Original 4-way pipeline (`train.py`) | MI, binary left/right | by subject 60/20/10/10, holdout ~10 subjects, 5 seeds | **84.3 ± 2.8** (holdout) |
+| 2 | Same old setting, rerun | MI, 64 ch, 0.5-45 Hz, 0-4 s | N-LNSO, 106 subjects | **83.5 [81.5, 85.5]** |
+| 3 | Eye signal only (F7 and F8, below 4 Hz) | MI, 2 frontal channels | N-LNSO, 106 subjects | 81.3 [79.1, 83.4] |
+| 4 | Motor imagery after eye regression | MI, 21 motor ch, 7-30 Hz, 0.5-4 s | N-LNSO, 106 subjects | **66.6 [64.2, 69.1]** |
+| 5 | Executed movement, same settings, Tangent Space + LR | MM, 21 motor ch, 7-30 Hz, 0.5-4 s | N-LNSO, 106 subjects | 69.8 [67.0, 72.4] |
+| 6 | Replicated published setup, left vs right | MI, 103 subjects | random instances / by subject | 69.8 / **51.2** [50.4, 52.1] |
+
+Rows 2 to 6 are the same protocol and the same subjects, so they are comparable. Row 1 used a single small holdout.
 
 ## Main findings
 
