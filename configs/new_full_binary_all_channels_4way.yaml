@@ -41,7 +41,7 @@ preprocessing:
   tmax: 4.0
   baseline: null
   balance_classes: true
-  normalize: true
+  normalization: "none"          # none | zscore_subject_channel | exp_moving_standardization | euclidean_alignment (default chosen after benchmark ablation)
 
 task:
   mode: "binary"
@@ -132,7 +132,7 @@ run:
   single_run: true
   cross_validation: true
   eegnet_grid_search: true
-  shallow_grid_search: true
+  shallow_grid_search: false
   csp_ml_grid: false           # <-- Ustawione na false
   preprocessing_grid: true
   joint_grid: true

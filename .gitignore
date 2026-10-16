@@ -22,6 +22,8 @@ wheels/
 MANIFEST
 cache/
 outputs/*
+.DS_Store
+
 # Virtual environments
 venv/
 env/
@@ -53,3 +55,4 @@ models/*.pt
 
 # Poetry
 .python-version
+.venv/

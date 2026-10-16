@@ -89,51 +89,51 @@ def run_shallow_grid(
             if verbose:
                 print(f"\nShallow combo {i+1}/{len(combos)}: lr={lr}, {params}")
 
-        gkf = GroupKFold(n_splits=n_splits)
-        fold_accs = []
+            gkf = GroupKFold(n_splits=n_splits)
+            fold_accs = []
 
-        for train_idx, val_idx in gkf.split(X, y, groups=subjects):
-            X_tr, y_tr = X[train_idx], y[train_idx]
-            X_vl, y_vl = X[val_idx], y[val_idx]
+            for train_idx, val_idx in gkf.split(X, y, groups=subjects):
+                X_tr, y_tr = X[train_idx], y[train_idx]
+                X_vl, y_vl = X[val_idx], y[val_idx]
 
-            train_dl = DataLoader(EEGDataset(X_tr, y_tr), batch_size=64, shuffle=True)
-            val_dl = DataLoader(EEGDataset(X_vl, y_vl), batch_size=64, shuffle=False)
+                train_dl = DataLoader(EEGDataset(X_tr, y_tr), batch_size=64, shuffle=True)
+                val_dl = DataLoader(EEGDataset(X_vl, y_vl), batch_size=64, shuffle=False)
 
-            model = ShallowConvNet(
-                chans=chans, classes=classes, time_points=time_points, **params,
-            ).to(device)
-            optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+                model = ShallowConvNet(
+                    chans=chans, classes=classes, time_points=time_points, **params,
+                ).to(device)
+                optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
-            weights = compute_class_weight("balanced", classes=np.unique(y_tr), y=y_tr)
-            loss_fn = nn.CrossEntropyLoss(
-                weight=torch.tensor(weights, dtype=torch.float32).to(device)
-            )
+                weights = compute_class_weight("balanced", classes=np.unique(y_tr), y=y_tr)
+                loss_fn = nn.CrossEntropyLoss(
+                    weight=torch.tensor(weights, dtype=torch.float32).to(device)
+                )
 
-            best_val_acc = 0.0
-            epochs_no_improve = 0
-            for epoch in range(epochs_train):
-                train_step(model, train_dl, loss_fn, optimizer, device)
-                _, val_acc = eval_step(model, val_dl, loss_fn, device)
-                if val_acc > best_val_acc:
-                    best_val_acc = val_acc
-                    epochs_no_improve = 0
-                else:
-                    epochs_no_improve += 1
+                best_val_acc = 0.0
+                epochs_no_improve = 0
+                for epoch in range(epochs_train):
+                    train_step(model, train_dl, loss_fn, optimizer, device)
+                    _, val_acc = eval_step(model, val_dl, loss_fn, device)
+                    if val_acc > best_val_acc:
+                        best_val_acc = val_acc
+                        epochs_no_improve = 0
+                    else:
+                        epochs_no_improve += 1
                 
-                if patience is not None and epochs_no_improve >= patience:
-                    break
+                    if patience is not None and epochs_no_improve >= patience:
+                        break
 
-            fold_accs.append(best_val_acc)
+                fold_accs.append(best_val_acc)
 
-        mean_acc = np.mean(fold_accs)
-        std_acc = np.std(fold_accs)
+            mean_acc = np.mean(fold_accs)
+            std_acc = np.std(fold_accs)
 
-        if verbose:
-            print(f"  → {mean_acc:.4f} ± {std_acc:.4f}")
+            if verbose:
+                print(f"  → {mean_acc:.4f} ± {std_acc:.4f}")
 
-        results.append({**params, "lr": lr, "mean_acc": mean_acc, "std_acc": std_acc})
-        if checkpoint_path is not None:
-            pd.DataFrame(results).to_csv(checkpoint_path, index=False)
+            results.append({**params, "lr": lr, "mean_acc": mean_acc, "std_acc": std_acc})
+            if checkpoint_path is not None:
+                pd.DataFrame(results).to_csv(checkpoint_path, index=False)
 
     except (Exception, KeyboardInterrupt) as e:
         if verbose:
@@ -194,53 +194,53 @@ def run_eegnet_grid(
             if verbose:
                 print(f"\nCombo {i+1}/{len(combos)}: {params}, f2={f2}")
 
-        gkf = GroupKFold(n_splits=n_splits)
-        fold_accs = []
+            gkf = GroupKFold(n_splits=n_splits)
+            fold_accs = []
 
-        for train_idx, val_idx in gkf.split(X, y, groups=subjects):
-            X_tr, y_tr = X[train_idx], y[train_idx]
-            X_vl, y_vl = X[val_idx], y[val_idx]
+            for train_idx, val_idx in gkf.split(X, y, groups=subjects):
+                X_tr, y_tr = X[train_idx], y[train_idx]
+                X_vl, y_vl = X[val_idx], y[val_idx]
 
-            train_dl = DataLoader(EEGDataset(X_tr, y_tr), batch_size=64, shuffle=True)
-            val_dl = DataLoader(EEGDataset(X_vl, y_vl), batch_size=64, shuffle=False)
+                train_dl = DataLoader(EEGDataset(X_tr, y_tr), batch_size=64, shuffle=True)
+                val_dl = DataLoader(EEGDataset(X_vl, y_vl), batch_size=64, shuffle=False)
 
-            model = EEGNet(
-                chans=chans, classes=classes, time_points=time_points,
-                f1=params["f1"], f2=f2, d=params["d"],
-                dropout_rate=params["dropout_rate"],
-            ).to(device)
-            optimizer = torch.optim.Adam(model.parameters(), lr=params["lr"], weight_decay=weight_decay)
+                model = EEGNet(
+                    chans=chans, classes=classes, time_points=time_points,
+                    f1=params["f1"], f2=f2, d=params["d"],
+                    dropout_rate=params["dropout_rate"],
+                ).to(device)
+                optimizer = torch.optim.Adam(model.parameters(), lr=params["lr"], weight_decay=weight_decay)
 
-            weights = compute_class_weight("balanced", classes=np.unique(y_tr), y=y_tr)
-            loss_fn = nn.CrossEntropyLoss(
-                weight=torch.tensor(weights, dtype=torch.float32).to(device)
-            )
+                weights = compute_class_weight("balanced", classes=np.unique(y_tr), y=y_tr)
+                loss_fn = nn.CrossEntropyLoss(
+                    weight=torch.tensor(weights, dtype=torch.float32).to(device)
+                )
 
-            best_val_acc = 0.0
-            epochs_no_improve = 0
-            for epoch in range(epochs_train):
-                train_step(model, train_dl, loss_fn, optimizer, device)
-                _, val_acc = eval_step(model, val_dl, loss_fn, device)
-                if val_acc > best_val_acc:
-                    best_val_acc = val_acc
-                    epochs_no_improve = 0
-                else:
-                    epochs_no_improve += 1
+                best_val_acc = 0.0
+                epochs_no_improve = 0
+                for epoch in range(epochs_train):
+                    train_step(model, train_dl, loss_fn, optimizer, device)
+                    _, val_acc = eval_step(model, val_dl, loss_fn, device)
+                    if val_acc > best_val_acc:
+                        best_val_acc = val_acc
+                        epochs_no_improve = 0
+                    else:
+                        epochs_no_improve += 1
                 
-                if patience is not None and epochs_no_improve >= patience:
-                    break
+                    if patience is not None and epochs_no_improve >= patience:
+                        break
 
-            fold_accs.append(best_val_acc)
+                fold_accs.append(best_val_acc)
 
-        mean_acc = np.mean(fold_accs)
-        std_acc = np.std(fold_accs)
+            mean_acc = np.mean(fold_accs)
+            std_acc = np.std(fold_accs)
 
-        if verbose:
-            print(f"  → {mean_acc:.4f} ± {std_acc:.4f}")
+            if verbose:
+                print(f"  → {mean_acc:.4f} ± {std_acc:.4f}")
 
-        results.append({**params, "f2": f2, "mean_acc": mean_acc, "std_acc": std_acc})
-        if checkpoint_path is not None:
-            pd.DataFrame(results).to_csv(checkpoint_path, index=False)
+            results.append({**params, "f2": f2, "mean_acc": mean_acc, "std_acc": std_acc})
+            if checkpoint_path is not None:
+                pd.DataFrame(results).to_csv(checkpoint_path, index=False)
 
     except (Exception, KeyboardInterrupt) as e:
         if verbose:
@@ -291,55 +291,55 @@ def run_preprocessing_grid(
     try:
         for i, ((low, high), (tmin, tmax), baseline) in enumerate(combos[start_idx:], start=start_idx):
             baseline_tuple = tuple(baseline) if baseline is not None else None
-        label = f"bp={low}-{high}Hz, t={tmin}-{tmax}s, bl={'yes' if baseline else 'no'}"
-
-        if verbose:
-            print(f"\n[{i+1}/{len(combos)}] {label}")
-
-        start = time.time()
-        try:
-            X, y, subjects = epoch_with_params(
-                raw_data, low, high, tmin, tmax,
-                baseline=baseline_tuple,
-                channels=channels,
-                task_mode=task_mode,
-                seed=seed,
-            )
-
-            mean_acc, std_acc = cv_for_preprocessing(
-                X, y, subjects,
-                n_splits=n_splits, epochs=epochs,
-                chans=chans, classes=classes, device=device,
-            )
-            elapsed = time.time() - start
+            label = f"bp={low}-{high}Hz, t={tmin}-{tmax}s, bl={'yes' if baseline else 'no'}"
 
             if verbose:
-                print(f"  → {mean_acc:.4f} ± {std_acc:.4f} ({elapsed:.0f}s)")
+                print(f"\n[{i+1}/{len(combos)}] {label}")
 
-            results.append({
-                "low_freq": low, "high_freq": high,
-                "tmin": tmin, "tmax": tmax,
-                "baseline": "yes" if baseline else "no",
-                "time_points": X.shape[2],
-                "n_epochs": X.shape[0],
-                "mean_acc": mean_acc, "std_acc": std_acc,
-                "time_s": elapsed,
-            })
+            start = time.time()
+            try:
+                X, y, subjects = epoch_with_params(
+                    raw_data, low, high, tmin, tmax,
+                    baseline=baseline_tuple,
+                    channels=channels,
+                    task_mode=task_mode,
+                    seed=seed,
+                )
 
-        except Exception as e:
-            if verbose:
-                print(f"  ✗ FAILED: {e}")
-            results.append({
-                "low_freq": low, "high_freq": high,
-                "tmin": tmin, "tmax": tmax,
-                "baseline": "yes" if baseline else "no",
-                "time_points": None, "n_epochs": None,
-                "mean_acc": None, "std_acc": None,
-                "time_s": time.time() - start,
-            })
+                mean_acc, std_acc = cv_for_preprocessing(
+                    X, y, subjects,
+                    n_splits=n_splits, epochs=epochs,
+                    chans=chans, classes=classes, device=device,
+                )
+                elapsed = time.time() - start
 
-        if checkpoint_path is not None:
-            pd.DataFrame(results).to_csv(checkpoint_path, index=False)
+                if verbose:
+                    print(f"  → {mean_acc:.4f} ± {std_acc:.4f} ({elapsed:.0f}s)")
+
+                results.append({
+                    "low_freq": low, "high_freq": high,
+                    "tmin": tmin, "tmax": tmax,
+                    "baseline": "yes" if baseline else "no",
+                    "time_points": X.shape[2],
+                    "n_epochs": X.shape[0],
+                    "mean_acc": mean_acc, "std_acc": std_acc,
+                    "time_s": elapsed,
+                })
+
+            except Exception as e:
+                if verbose:
+                    print(f"  ✗ FAILED: {e}")
+                results.append({
+                    "low_freq": low, "high_freq": high,
+                    "tmin": tmin, "tmax": tmax,
+                    "baseline": "yes" if baseline else "no",
+                    "time_points": None, "n_epochs": None,
+                    "mean_acc": None, "std_acc": None,
+                    "time_s": time.time() - start,
+                })
+
+            if checkpoint_path is not None:
+                pd.DataFrame(results).to_csv(checkpoint_path, index=False)
 
     except (Exception, KeyboardInterrupt) as e:
         if verbose:
@@ -409,86 +409,87 @@ def run_joint_grid(
                     print(f"Skipping preproc {preproc_label} - already in checkpoint.")
                 continue
 
-        if verbose:
-            print(f"\n{'='*60}")
-            print(f"Preprocessing [{pp_idx+1}/{len(top_preproc)}]: {preproc_label}")
+            if verbose:
+                print(f"\n{'='*60}")
+                print(f"Preprocessing [{pp_idx+1}/{len(top_preproc)}]: {preproc_label}")
 
-        X, y, subjects = epoch_with_params(
-            raw_data,
-            pp_row["low_freq"], pp_row["high_freq"],
-            pp_row["tmin"], pp_row["tmax"],
-            baseline=baseline_tuple,
-            channels=channels,
-            task_mode=task_mode,
-            seed=seed,
-        )
-
-        if include_eegnet:
-            # --- EEGNet grid ---
-            eegnet_results = run_eegnet_grid(
-                X, y, subjects,
-                chans=chans, classes=classes,
-                n_splits=n_splits, epochs_train=eegnet_epochs,
-                device=device, verbose=verbose,
-            )
-            for r in eegnet_results:
-                all_results.append({
-                    "model_name": f"EEGNet(f1={r['f1']},d={r['d']},do={r['dropout_rate']},lr={r['lr']})",
-                    "model_type": "EEGNet",
-                    "preproc": preproc_label,
-                    "low_freq": pp_row["low_freq"],
-                    "high_freq": pp_row["high_freq"],
-                    "tmin": pp_row["tmin"],
-                    "tmax": pp_row["tmax"],
-                    "baseline": pp_row["baseline"],
-                    "mean_acc": r["mean_acc"],
-                    "std_acc": r["std_acc"],
-                })
-
-        if include_csp_ml:
-            # --- CSP + ML grid ---
-            from src.pipelines.csp_ml import run_csp_ml_grid
-            ml_results = run_csp_ml_grid(
-                X, y, subjects,
+            X, y, subjects = epoch_with_params(
+                raw_data,
+                pp_row["low_freq"], pp_row["high_freq"],
+                pp_row["tmin"], pp_row["tmax"],
+                baseline=baseline_tuple,
+                channels=channels,
                 task_mode=task_mode,
-                n_splits=n_splits,
-                verbose=verbose,
+                seed=seed,
             )
-            for r in ml_results:
-                all_results.append({
-                    "model_name": f"CSP+{r['model']}",
-                    "model_type": "CSP+ML",
-                    "preproc": preproc_label,
-                    "low_freq": pp_row["low_freq"],
-                    "high_freq": pp_row["high_freq"],
-                    "tmin": pp_row["tmin"],
-                    "tmax": pp_row["tmax"],
-                    "baseline": pp_row["baseline"],
-                    "mean_acc": r["best_cv_acc"],
-                    "std_acc": 0.0,
-                })
 
-        if include_shallow:
-            # --- ShallowConvNet grid ---
-            shallow_results = run_shallow_grid(
-                X, y, subjects,
-                chans=chans, classes=classes,
-                n_splits=n_splits, epochs_train=eegnet_epochs,
-                device=device, verbose=verbose,
-            )
-            for r in shallow_results:
-                all_results.append({
-                    "model_name": f"Shallow(ft={r['n_filters_time']},fs={r['n_filters_spat']},do={r['drop_prob']},lr={r['lr']})",
-                    "model_type": "ShallowConvNet",
-                    "preproc": preproc_label,
-                    "low_freq": pp_row["low_freq"],
-                    "high_freq": pp_row["high_freq"],
-                    "tmin": pp_row["tmin"],
-                    "tmax": pp_row["tmax"],
-                    "baseline": pp_row["baseline"],
-                    "mean_acc": r["mean_acc"],
-                    "std_acc": r["std_acc"],
-                })
+            if include_eegnet:
+                # --- EEGNet grid ---
+                eegnet_results = run_eegnet_grid(
+                    X, y, subjects,
+                    chans=chans, classes=classes,
+                    n_splits=n_splits, epochs_train=eegnet_epochs,
+                    device=device, verbose=verbose,
+                )
+                for r in eegnet_results:
+                    all_results.append({
+                        "model_name": f"EEGNet(f1={r['f1']},d={r['d']},do={r['dropout_rate']},lr={r['lr']})",
+                        "model_type": "EEGNet",
+                        "preproc": preproc_label,
+                        "low_freq": pp_row["low_freq"],
+                        "high_freq": pp_row["high_freq"],
+                        "tmin": pp_row["tmin"],
+                        "tmax": pp_row["tmax"],
+                        "baseline": pp_row["baseline"],
+                        "mean_acc": r["mean_acc"],
+                        "std_acc": r["std_acc"],
+                    })
+
+            if include_csp_ml:
+                # --- CSP + ML grid ---
+                from src.pipelines.csp_ml import run_csp_ml_grid
+                ml_results = run_csp_ml_grid(
+                    X, y, subjects,
+                    task_mode=task_mode,
+                    n_splits=n_splits,
+                    verbose=verbose,
+                )
+                for r in ml_results:
+                    all_results.append({
+                        "model_name": f"CSP+{r['model']}",
+                        "model_type": "CSP+ML",
+                        "preproc": preproc_label,
+                        "low_freq": pp_row["low_freq"],
+                        "high_freq": pp_row["high_freq"],
+                        "tmin": pp_row["tmin"],
+                        "tmax": pp_row["tmax"],
+                        "baseline": pp_row["baseline"],
+                        "mean_acc": r["best_cv_acc"],
+                        "std_acc": 0.0,
+                        "best_params": r["best_params"],
+                    })
+
+            if include_shallow:
+                # --- ShallowConvNet grid ---
+                shallow_results = run_shallow_grid(
+                    X, y, subjects,
+                    chans=chans, classes=classes,
+                    n_splits=n_splits, epochs_train=eegnet_epochs,
+                    device=device, verbose=verbose,
+                )
+                for r in shallow_results:
+                    all_results.append({
+                        "model_name": f"Shallow(ft={r['n_filters_time']},fs={r['n_filters_spat']},do={r['drop_prob']},lr={r['lr']})",
+                        "model_type": "ShallowConvNet",
+                        "preproc": preproc_label,
+                        "low_freq": pp_row["low_freq"],
+                        "high_freq": pp_row["high_freq"],
+                        "tmin": pp_row["tmin"],
+                        "tmax": pp_row["tmax"],
+                        "baseline": pp_row["baseline"],
+                        "mean_acc": r["mean_acc"],
+                        "std_acc": r["std_acc"],
+                    })
 
             if checkpoint_path is not None:
                 pd.DataFrame(all_results).to_csv(checkpoint_path, index=False)

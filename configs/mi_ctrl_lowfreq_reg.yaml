@@ -1,0 +1,24 @@
+# Control: 21 motor channels AFTER EOG regression, 0.5-4 Hz only. Near 50% = regression removed the gaze signal; high = residual eye signal (or genuine slow motor potentials).
+# Run: python scripts/run_benchmark.py --config configs/mi_ctrl_lowfreq_reg.yaml --out results/mi_ctrl_lowfreq_reg
+seed: 0
+data:
+  data_dir: null              # local PhysioNet directory with S###R##.edf; null = kagglehub
+  runs: ["R04", "R08", "R12"] # motor IMAGERY left/right fist (T1/T2)
+  sfreq: 160.0
+  exclude: "none"        # legacy results were obtained without removing subjects      # none | koellod2023 | extended | legacy | [ids]
+  cache_dir: "cache"
+preprocessing:
+  band: [0.5, 4.0]
+  tmin: 0.0
+  tmax: 4.0
+  channels: ["Fc5.", "Fc3.", "Fc1.", "Fcz.", "Fc2.", "Fc4.", "Fc6.", "C5..", "C3..", "C1..", "Cz..", "C2..", "C4..", "C6..", "Cp5.", "Cp3.", "Cp1.", "Cpz.", "Cp2.", "Cp4.", "Cp6.", "Fp1.", "Fp2.", "Af7.", "Af8.", "F7..", "F8.."]
+  eog_regress: ["Fp1.", "Fp2.", "Af7.", "Af8.", "F7..", "F8.."]
+eval:
+  n_outer: 5                  # outer N-LNSO folds; each subject tested exactly once
+  val_frac: 0.15              # inner validation subjects drawn from training pool
+  seeds: [0, 1, 2]            # averaged per subject BEFORE any statistics
+  epochs: 50
+  grid:
+    - [eegnet, zscore_subject_channel]
+    - [eegnet, none]
+  reference: "eegnet|zscore_subject_channel"

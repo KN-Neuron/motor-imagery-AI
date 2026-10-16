@@ -10,13 +10,16 @@ from pathlib import Path
 
 import mne
 
-# Subjects with known bad annotations (Shuqfa et al. 2024, Chowdhury et al. 2023)
+# LEGACY list used by train.py only. Sources were never verified and 082 is not
+# flagged in the literature we found. New code must use src/data/subjects.py
+# (configurable presets, logged) and pass ``exclude=set()`` here.
 BAD_SUBJECTS = {"038", "082", "089", "104"}
 
 
 def download_dataset(
     dataset: str = "brianleung2020/eeg-motor-movementimagery-dataset",
     desired_runs: list[str] | None = None,
+    exclude: set[str] | None = None,
 ) -> dict[str, list[str]]:
     """
     Download dataset via kagglehub and return {subject_id: [file_paths]}.
@@ -27,8 +30,13 @@ def download_dataset(
         Kaggle dataset identifier.
     desired_runs : list of str
         Run codes to include, e.g. ["R04", "R08", "R12"].
+    exclude : set of str, optional
+        Subject IDs dropped here. Default (None) keeps the legacy ``BAD_SUBJECTS``;
+        pass ``set()`` to exclude nothing and filter later with src/data/subjects.py.
     """
     import kagglehub
+
+    excluded = BAD_SUBJECTS if exclude is None else set(exclude)
 
     if desired_runs is None:
         desired_runs = ["R04", "R08", "R12"]
@@ -43,12 +51,12 @@ def download_dataset(
         for filename in filenames:
             if pat.match(filename) and filename[4:-4] in desired_runs:
                 subject = filename[1:4]
-                if subject not in BAD_SUBJECTS:
+                if subject not in excluded:
                     subjects_data.setdefault(subject, []).append(
                         os.path.join(dirname, filename)
                     )
 
-    print(f"Found {len(subjects_data)} subjects (excluded {len(BAD_SUBJECTS)} bad)")
+    print(f"Found {len(subjects_data)} subjects (excluded {len(excluded)} by id)")
     return subjects_data
 
 

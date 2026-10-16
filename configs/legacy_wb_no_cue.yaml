@@ -1,0 +1,23 @@
+# Wideband 0.5-45 Hz, window 0.5-4.0 s (drops the first 0.5 s after the visual cue).
+# Run: python scripts/run_benchmark.py --config configs/legacy_wb_no_cue.yaml --out results/legacy_wb_no_cue
+seed: 0
+data:
+  data_dir: null              # local PhysioNet directory with S###R##.edf; null = kagglehub
+  runs: ["R04", "R08", "R12"] # motor IMAGERY left/right fist (T1/T2)
+  sfreq: 160.0
+  exclude: "none"        # legacy results were obtained without removing subjects      # none | koellod2023 | extended | legacy | [ids]
+  cache_dir: "cache"
+preprocessing:
+  band: [0.5, 45.0]
+  tmin: 0.5
+  tmax: 4.0
+  channels: null              # null = all 64
+eval:
+  n_outer: 5                  # outer N-LNSO folds; each subject tested exactly once
+  val_frac: 0.15              # inner validation subjects drawn from training pool
+  seeds: [0, 1, 2]            # averaged per subject BEFORE any statistics
+  epochs: 50
+  grid:
+    - [eegnet, none]
+    - [eegnet, zscore_subject_channel]
+  reference: "eegnet|none"

@@ -1,0 +1,37 @@
+# Benchmark / simulation config. Run: python scripts/run_benchmark.py --config configs/benchmark.yaml
+seed: 0
+data:
+  data_dir: null              # local PhysioNet directory with S###R##.edf; null = kagglehub
+  runs: ["R04", "R08", "R12"] # motor IMAGERY left/right fist (T1/T2)
+  sfreq: 160.0
+  exclude: "koellod2023"      # none | koellod2023 | extended | legacy | [ids]
+  cache_dir: "cache"
+preprocessing:
+  band: [4.0, 40.0]
+  tmin: 0.5
+  tmax: 2.5                   # 2 s window, no zero padding (Wang 2020: 2 s costs ~1.3 pp)
+  channels: null              # null = all 64
+eval:
+  n_outer: 5                  # outer N-LNSO folds; each subject tested exactly once
+  val_frac: 0.15              # inner validation subjects drawn from training pool
+  seeds: [0, 1, 2]            # averaged per subject BEFORE any statistics
+  epochs: 50
+  grid:                       # (pipeline, normalization) pairs
+    - [eegnet, none]
+    - [eegnet, zscore_subject_channel]
+    - [eegnet, exp_moving_standardization]
+    - [eegnet, euclidean_alignment]
+    - [eegnet_maxnorm, euclidean_alignment]
+    - [shallow, euclidean_alignment]
+    - [deep, euclidean_alignment]
+    - [csp_lda, none]
+    - [csp_lda, euclidean_alignment]
+    - [ts_lr, euclidean_alignment]
+  reference: "eegnet|euclidean_alignment"
+simulation:
+  pipeline: eegnet
+  train_norms: [none, zscore_subject_channel, euclidean_alignment]
+  alt_band: [0.5, 45.0]
+  montages: [midi16, maxi32]
+  fewshot_ks: [0, 10, 20, 40]
+  trial_seconds: 8.0          # ~2 min run / 15 trials (do weryfikacji)

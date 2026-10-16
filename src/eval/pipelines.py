@@ -1,0 +1,197 @@
+"""
+Pipelines with a common interface: fit(X_tr, y_tr, X_val, y_val) / predict_proba(X).
+Checkpoint selection uses ONLY (X_val, y_val), which are validation subjects
+drawn from the training pool.
+"""
+
+from __future__ import annotations
+
+import copy
+
+import numpy as np
+import pandas as pd
+import torch
+import torch.nn as nn
+
+from src.models.eegnet import EEGNet
+
+
+def _device():
+    if torch.cuda.is_available():
+        return "cuda"
+    return "cpu"
+
+
+def balanced_accuracy(y, pred) -> float:
+    """Mean per-class recall over the classes present in ``y``."""
+    y, pred = np.asarray(y), np.asarray(pred)
+    return float(np.mean([(pred[y == c] == c).mean() for c in np.unique(y)]))
+
+
+class TorchPipeline:
+    """Generic CNN trainer. Best epoch: lowest validation loss (acc as tiebreak), or with
+    ``select="bal_acc"`` the highest validation balanced accuracy (loss as tiebreak); use the latter
+    when training and validation class priors differ (e.g. SMOTE-balanced training, imbalanced validation)."""
+
+    def __init__(self, build, epochs=50, lr=1e-3, batch_size=64, seed=0, weight_decay=0.0,
+                 device=None, max_norm=False, select="loss"):
+        if select not in ("loss", "bal_acc"):
+            raise ValueError(f"select must be 'loss' or 'bal_acc', got {select!r}")
+        self.select = select
+        self.build, self.epochs, self.lr, self.bs = build, epochs, lr, batch_size
+        self.seed, self.wd, self.max_norm = seed, weight_decay, max_norm
+        self.device = device or _device()
+        self.model = None
+
+    @staticmethod
+    def _t(X):
+        return torch.as_tensor(np.ascontiguousarray(X), dtype=torch.float32)
+
+    def _eval(self, X, y):
+        self.model.eval()
+        with torch.no_grad():
+            logits = torch.cat([self.model(xb.to(self.device)) for xb in self._t(X).split(256)])
+        yt = torch.as_tensor(y).to(self.device)
+        self._last_bal = balanced_accuracy(yt.cpu().numpy(), logits.argmax(1).cpu().numpy())
+        return nn.functional.cross_entropy(logits, yt).item(), (logits.argmax(1) == yt).float().mean().item()
+
+    def fit(self, X_tr, y_tr, X_val, y_val):
+        torch.manual_seed(self.seed)
+        np.random.seed(self.seed)
+        n_chans, n_times = X_tr.shape[1], X_tr.shape[2]
+        n_classes = int(max(y_tr.max(), y_val.max())) + 1
+        self.model = self.build(n_chans, n_classes, n_times).to(self.device)
+        opt = torch.optim.Adam(self.model.parameters(), lr=self.lr, weight_decay=self.wd)
+        sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=self.epochs)
+        Xt, yt = self._t(X_tr), torch.as_tensor(y_tr, dtype=torch.long)
+        g = torch.Generator().manual_seed(self.seed)
+        best, best_state, best_key = (np.inf, 0.0), None, None
+        hist = []
+        for ep in range(self.epochs):
+            self.model.train()
+            tl, tc, tn = 0.0, 0, 0
+            for idx in torch.randperm(len(Xt), generator=g).split(self.bs):
+                if len(idx) < 2:
+                    continue
+                out = self.model(Xt[idx].to(self.device))
+                yb = yt[idx].to(self.device)
+                loss = nn.functional.cross_entropy(out, yb)
+                opt.zero_grad()
+                loss.backward()
+                opt.step()
+                if hasattr(self.model, "apply_max_norm"):
+                    self.model.apply_max_norm()
+                tl += loss.item() * len(idx); tc += (out.argmax(1) == yb).sum().item(); tn += len(idx)
+            lr = opt.param_groups[0]["lr"]
+            sched.step()
+            vl, va = self._eval(X_val, y_val)
+            vb = self._last_bal
+            hist.append(dict(epoch=ep, train_loss=tl / max(tn, 1), train_acc=tc / max(tn, 1),
+                             val_loss=vl, val_acc=va, val_bal_acc=vb, lr=lr))
+            key = (vl, -va) if self.select == "loss" else (-vb, vl)
+            if best_key is None or key < best_key:
+                best_key, best, best_state = key, (vl, va), copy.deepcopy(self.model.state_dict())
+                self.best_epoch_ = ep
+        self.model.load_state_dict(best_state)
+        self.val_loss_, self.val_acc_ = best
+        self.history_ = pd.DataFrame(hist)  # per-epoch curves (train metrics are running means over the epoch)
+        return self
+
+    def predict_proba(self, X):
+        self.model.eval()
+        with torch.no_grad():
+            out = torch.cat([self.model(xb.to(self.device)) for xb in self._t(X).split(256)])
+        return out.softmax(1).cpu().numpy()
+
+
+def eegnet(max_norm: bool, f1=8, d=2, temp_kernel=80, dropout_rate=0.5, **kw):
+    def build(c, k, t):
+        return EEGNet(chans=c, classes=k, time_points=t, use_max_norm=max_norm, f1=f1, f2=f1 * d, d=d,
+                      temp_kernel=temp_kernel, dropout_rate=dropout_rate)
+    return lambda seed: TorchPipeline(build, seed=seed, **kw)
+
+
+def eegnet_transformer(F1=8, D=2, d_model=32, nhead=4, num_layers=2, dropout=0.5, **kw):
+    from src.models.eegnet_transformer import SpatialEEGNetTransformer
+    return lambda seed: TorchPipeline(
+        lambda c, k, t: SpatialEEGNetTransformer(n_classes=k, channels=c, samples=t, F1=F1, D=D, d_model=d_model,
+                                                 nhead=nhead, num_layers=num_layers, dropout=dropout),
+        seed=seed, **kw)
+
+
+def shallow(n_filters=40, drop_prob=0.5, **kw):
+    from braindecode.models import ShallowFBCSPNet
+    return lambda seed: TorchPipeline(
+        lambda c, k, t: ShallowFBCSPNet(n_chans=c, n_outputs=k, n_times=t, final_conv_length="auto",
+                                        n_filters_time=n_filters, n_filters_spat=n_filters, drop_prob=drop_prob),
+        seed=seed, **kw)
+
+
+def deep(**kw):
+    from braindecode.models import Deep4Net
+    return lambda seed: TorchPipeline(
+        lambda c, k, t: Deep4Net(n_chans=c, n_outputs=k, n_times=t, final_conv_length="auto"),
+        seed=seed, **kw)
+
+
+class SklearnPipeline:
+    """CSP+LDA or tangent space + LR. Validation data is unused (no checkpoints)."""
+
+    def __init__(self, kind: str, seed: int = 0, n_components: int = 6, C: float = 1.0):
+        self.kind, self.seed, self.n_components, self.C = kind, seed, n_components, C
+
+    def fit(self, X_tr, y_tr, X_val=None, y_val=None):
+        from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.pipeline import make_pipeline
+        if self.kind == "csp_lda":
+            from mne.decoding import CSP
+            self.clf = make_pipeline(CSP(n_components=self.n_components, reg="ledoit_wolf", log=True),
+                                     LinearDiscriminantAnalysis())
+        elif self.kind == "ts_lr":
+            from pyriemann.estimation import Covariances
+            from pyriemann.tangentspace import TangentSpace
+            self.clf = make_pipeline(Covariances(estimator="oas"), TangentSpace(metric="riemann"),
+                                     LogisticRegression(C=self.C, max_iter=2000, random_state=self.seed))
+        else:
+            raise ValueError(self.kind)
+        self.clf.fit(X_tr.astype(np.float64), y_tr)
+        return self
+
+    def predict_proba(self, X):
+        return self.clf.predict_proba(X.astype(np.float64))
+
+
+class HeogLDA:
+    """Horizontal-EOG proxy: (ch0 - ch1) averaged in ``n_bins`` time bins -> shrinkage LDA.
+    Meant for X restricted to [F7, F8]."""
+
+    def __init__(self, n_bins: int = 8, seed: int = 0):
+        self.n_bins = n_bins
+
+    def _feat(self, X):
+        assert X.shape[1] == 2, "heog_lda expects exactly two channels (F7, F8)"
+        d = (X[:, 0] - X[:, 1]).astype(np.float64)
+        return np.stack([b.mean(1) for b in np.array_split(d, self.n_bins, axis=1)], axis=1)
+
+    def fit(self, X_tr, y_tr, X_val=None, y_val=None):
+        from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+        self.clf = LinearDiscriminantAnalysis(solver="lsqr", shrinkage="auto").fit(self._feat(X_tr), y_tr)
+        return self
+
+    def predict_proba(self, X):
+        return self.clf.predict_proba(self._feat(X))
+
+
+def make_registry(epochs: int = 50, device=None) -> dict:
+    kw = dict(epochs=epochs, device=device)
+    return {
+        "eegnet": eegnet(False, **kw),
+        "eegnet_maxnorm": eegnet(True, **kw),
+        "shallow": shallow(**kw),
+        "eegnet_transformer": eegnet_transformer(**kw),
+        "deep": deep(**kw),
+        "csp_lda": lambda seed: SklearnPipeline("csp_lda", seed),
+        "ts_lr": lambda seed: SklearnPipeline("ts_lr", seed),
+        "heog_lda": lambda seed: HeogLDA(seed=seed),
+    }
