@@ -18,6 +18,8 @@ All numbers are accuracy on unseen subjects (N = 106), mean over subjects with a
 | Does a spatial EEGNet-Transformer help? | No, it is the weakest model: 63.9% [61.5, 66.4]. |
 | Do very high published numbers hold up? | We replicated a CNN-GRU 5-class setup ([Bouchane et al. 2025, Sensors 25(5):1399](https://www.mdpi.com/1424-8220/25/5/1399)) from its description. With a random instance split we obtain 80.2% balanced accuracy. When the six channel pairs of the same window stay on one side of the split it drops to 20.9% (chance is 20%), and with a subject-level split to 20.7%. Left/right on 103 subjects: 69.8% with a random split, 51.2% [50.4, 52.1] by subject. |
 
+Every number with its data, channels, band, window, split and model: [`docs/results.md`](docs/results.md).
+
 Caveats: the MI configuration was chosen after looking at results on the same folds, so the 66.7% is exploratory; the replication follows the paper's description, not its code, and the paper does not state its main split.
 Full history, every table and every mistake made along the way: [`docs/lab_notebook.md`](docs/lab_notebook.md) (Polish).
 
@@ -90,6 +92,7 @@ notebooks/        exploratory notebooks (see notebooks/README.md)
 
 | file | content |
 |---|---|
+| [`docs/results.md`](docs/results.md) | all results in tables: data, split, settings, accuracy with CI |
 | [`docs/lab_notebook.md`](docs/lab_notebook.md) | chronological log: all runs, results, conclusions, mistakes (Polish) |
 | [`docs/code_review_map.md`](docs/code_review_map.md) | what each module does, suggested review order, known problems |
 | [`docs/legacy_pipeline.md`](docs/legacy_pipeline.md) | the earlier 4-way pipeline (`train.py`) and how to extend it |
