@@ -50,9 +50,7 @@ poetry install
 pip install -r requirements.txt
 
 # Train with default config
-# UWAGA: siatki w src/pipelines/grid_search.py maja bledne wciecia od refaktoryzacji z 21.03.2026
-# (petla po kombinacjach nie zawiera CV, liczona jest tylko ostatnia). Nie uruchamiac etapow siatek
-# bez poprawki i testu. Wyniki w docs/lab_notebook.md pochodza z src/eval/, nie z train.py.
+# Wyniki w docs/lab_notebook.md pochodza z src/eval/, nie z train.py (patrz tam: znane bledy train.py).
 python train.py
 
 # Train with custom config
