@@ -12,15 +12,15 @@ All numbers are accuracy on unseen subjects (N = 106), mean over subjects with a
 |---|---|
 | Does the original ~84% reproduce? | Yes, 83.5% (64 channels, 0.5 to 45 Hz). |
 | Where does it come from? | Mostly eye and gaze signal, not motor imagery. Frontal channels F7/F8 below 4 Hz alone give 81.3% (EEGNet). An LDA on F7 and F8 alone gives 77.4%. The cue appears on the left or right of the screen and the dataset has no EOG channel. This evidence is circumstantial. |
-| Honest motor imagery accuracy? | **66.7% [64.2, 69.2]** (EEGNet, 21 motor channels, frontal channels regressed out per subject, 7 to 30 Hz, 0.5 to 4 s). 68.8% if the first 0.5 s after the cue is included. |
+| Honest motor imagery accuracy? | **66.6% [64.2, 69.1]** (EEGNet, 21 motor channels, frontal channels regressed out per subject, 7 to 30 Hz, 0.5 to 4 s). 68.8% if the first 0.5 s after the cue is included. |
 | Does executed movement do better? | Only with covariance methods: 69.8% [67.0, 72.4] (Tangent Space + LR) vs 64.5% for imagery. EEGNet does not improve (64.7%). |
-| Does hyperparameter tuning help? | No. Nested tuning gives 66.6% vs 66.7% for EEGNet (40 of 288 grid combinations) and changes the other models by -0.1 to +1.2 pp. |
-| Does a spatial EEGNet-Transformer help? | No, it is the weakest model: 63.9% [61.5, 66.4]. |
+| Does hyperparameter tuning help? | No. Nested tuning gives 66.4% vs 66.6% for EEGNet (40 of 288 grid combinations) and changes the other models by -0.2 to +1.2 pp. |
+| Does a spatial EEGNet-Transformer help? | No, it is the weakest model: 63.9% [61.5, 66.3]. |
 | Do very high published numbers hold up? | We replicated a CNN-GRU 5-class setup ([Bouchane et al. 2025, Sensors 25(5):1399](https://www.mdpi.com/1424-8220/25/5/1399)) from its description. With a random instance split we obtain 80.2% balanced accuracy. When the six channel pairs of the same window stay on one side of the split it drops to 20.9% (chance is 20%), and with a subject-level split to 20.7%. Left/right on 103 subjects: 69.8% with a random split, 51.2% [50.4, 52.1] by subject. |
 
 Every number with its data, channels, band, window, split and model: [`docs/results.md`](docs/results.md).
 
-Caveats: the MI configuration was chosen after looking at results on the same folds, so the 66.7% is exploratory; the replication follows the paper's description, not its code, and the paper does not state its main split.
+Caveats: the MI configuration was chosen after looking at results on the same folds, so the 66.6% is exploratory; the replication follows the paper's description, not its code, and the paper does not state its main split.
 Full history, every table and every mistake made along the way: [`docs/lab_notebook.md`](docs/lab_notebook.md) (Polish).
 
 ## Evaluation protocol (N-LNSO)
