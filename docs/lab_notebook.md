@@ -187,7 +187,7 @@ Obserwacje:
    (2 kanały F7/F8 < 4 Hz ≈ 81% vs 64 kanały 83,5%).
 
 Stan: użytkownik przegląda i waliduje cały dodany kod przed dalszymi biegami
-(mapa zmian i kolejność przeglądu: README, sekcja "Zmiany do przeglądu").
+(mapa zmian i kolejność przeglądu: `docs/code_review_map.md`).
 
 ### 3.9 Ruch wykonywany (R03/R07/R11) vs wyobrażony, te same kontrole (2026-10-09, N=106)
 Configi `configs/mm_*.yaml`, wyniki `results/mm_*`, tabela `results/movement_summary.txt`.
@@ -387,6 +387,12 @@ Wynik (2026-10-10, `results/final/summary_all.txt`, wszystkie biegi policzone od
   z `scripts/run_mi_check.sh` regresja idzie na surowych epokach, normalizacja po niej. Wynik
   `legacy_eye_motor_regressed` (69,3%) policzony jeszcze starą kolejnością (zscore przed regresją;
   dla zscore różnica powinna być niewielka, nie sprawdzone).
+
+### Porządek repo pod `main` (2026-10-16)
+README skrócone do wyników, protokołu i uruchamiania (po angielsku). Przeniesione bez zmian treści: stary opis pipelinu 4-way
+-> `docs/legacy_pipeline.md`, mapa kodu i znane problemy -> `docs/code_review_map.md`, lista zadań -> `docs/TODO.md`.
+Usunięte: `SETUP_SUMMARY.md` (opis innego projektu, Hex-O-Spell). Dodane: `notebooks/README.md` (status notebooków),
+`make all`. Brak pliku LICENSE (MIT zadeklarowane w `pyproject.toml`); `poetry.lock` nieodświeżony.
 
 ## 6. Otwarte
 

@@ -5,7 +5,10 @@ DATA_DIR ?=
 CONFIG ?= configs/benchmark.yaml
 CFG_DATA = $(if $(DATA_DIR),--data-dir $(DATA_DIR),)
 
-.PHONY: reproduce benchmark simulate report test env
+.PHONY: all reproduce benchmark simulate report test env
+all:  # every experiment from scratch + figures + results/final/REPORT.md (GPU, hours); PHASES="..." selects phases
+	bash scripts/run_all.sh
+
 reproduce: benchmark simulate report
 
 benchmark:
