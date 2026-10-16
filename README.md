@@ -46,6 +46,25 @@ Full history, every table and every mistake made along the way: [`docs/lab_noteb
 * 3 seeds per model; the subject is the independent unit for all CIs (bootstrap over subjects, Wilcoxon with Holm correction for paired comparisons).
 * Hyperparameter tuning, when used, is nested in the training subjects.
 
+```
+Split subject IDs into 5 groups (~21 subjects each), before any processing. Repeat for fold 1..5:
+
+  fold 1:  [ TEST ][  ...  ][  ...  ][  ...  ][  ...  ]
+  fold 2:  [  ...  ][ TEST ][  ...  ][  ...  ][  ...  ]
+  ...                                         (every subject is in TEST exactly once)
+
+  one fold:  4 groups (~85 subjects) -> TRAIN (~72) + VAL (~13, random subjects, 15%)
+             per-subject preprocessing, no labels (EOG regression, then z-score / EA / EMS)
+                 |                    |                      |
+          fit the network      pick the best epoch     TEST: one evaluation by a model
+          (3 seeds)            on VAL                  that never saw these subjects
+
+  tuned variant: inside the 85 training subjects, 3 subject groups; each candidate is trained on 2
+                 groups and scored on the 3rd; the best is refit on all 85, then TEST once.
+
+  result: accuracy per subject (mean of 3 seeds) -> mean over 106 subjects + bootstrap 95% CI over subjects
+```
+
 ## Reproduce
 
 ```bash
@@ -61,6 +80,43 @@ make all                             # everything from scratch (GPU, several hou
 The first version of the project, designed before the study above, and methodologically sound: subjects are split **before any preprocessing** into TRAIN 60% / VAL 20% / DEV 10% / HOLDOUT 10%. VAL selects the checkpoint (early stopping), DEV compares models and preprocessing, grid searches use GroupKFold on TRAIN+VAL subjects only, and the HOLDOUT is evaluated once at the end. There is no leakage between subjects. Its holdout result (84.3%, mean of 5 seeds) is the number that started the study, and it reproduced (83.5%) under the N-LNSO protocol. It was the right design for the question as it was then posed; what the study found is a property of the data (eye and gaze signal), not a flaw of the pipeline.
 
 N-LNSO keeps the same principles and changes one thing: instead of a single holdout of ~10 subjects (noisy), five rotating test folds of ~21 subjects, so every subject is tested once and the CIs are over all 106. A 4-way run with a larger holdout (e.g. 20 subjects) is a reasonable alternative when a single final number is wanted.
+
+```
+4-way subject split:
+  - TRAIN   (60%)  gradient descent, backprop
+  - VAL     (20%)  early stopping, checkpoint selection
+  - DEV     (10%)  model / preprocessing comparison across stages
+  - HOLDOUT (10%)  touched ONCE at the very end, reported result
+
+  ┌─────────────────────────────────────────────────────────┐
+  │  Split subject IDs (before ANY preprocessing)           │
+  │  ┌───────┐ ┌─────┐ ┌─────┐ ┌─────────┐                  │
+  │  │ TRAIN │ │ VAL │ │ DEV │ │ HOLDOUT │                  │
+  │  └───┬───┘ └──┬──┘ └──┬──┘ └────┬────┘                  │
+  │      │        │       │         │                       │
+  │  Preprocess  Preprocess  Preprocess  Preprocess         │
+  │  (separate)  (separate)  (separate)  (separate)         │
+  │      │        │       │         │                       │
+  │      ▼        ▼       │         │ (locked away)         │
+  │   train()  checkpoint │         │                       │
+  │      │     selection  │         │                       │
+  │      │        │       │         │                       │
+  │  Stages 1-6   │       ▼         │                       │
+  │  grid search  │   evaluate      │                       │
+  │  CV on train+ │   best model    │                       │
+  │  val subjects │   on DEV        │                       │
+  │      │        │       │         │                       │
+  │  Stage 7:     │       │         ▼                       │
+  │  final retrain│       │    ONE evaluation               │
+  │  with best    │       │    (reported result)            │
+  │  config       │       │                                 │
+  └─────────────────────────────────────────────────────────┘
+
+  Stages 2-6 (CV, grid searches): GroupKFold on TRAIN+VAL only
+  Stage 1 (single run):           train on TRAIN, checkpoint on VAL, eval on DEV
+  Stage 7 (final retrain):        train on TRAIN, checkpoint on VAL, eval on DEV
+  Stage 8 (holdout):              ONE evaluation on HOLDOUT, the reported result
+```
 
 Stages: single EEGNet run, EEGNet and ShallowConvNet grids, CSP + classical ML grid (LDA, SVM, RF, KNN, GB, LR, MLP), preprocessing grid (band, window, baseline), joint preprocessing x model grid, final retrain with the best configuration, one holdout evaluation. Grid searches write a CSV checkpoint and resume after a crash or `Ctrl+C`; the final retrain saves full learning curves.
 
