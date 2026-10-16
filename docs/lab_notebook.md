@@ -388,6 +388,12 @@ Wynik (2026-10-10, `results/final/summary_all.txt`, wszystkie biegi policzone od
   `legacy_eye_motor_regressed` (69,3%) policzony jeszcze starą kolejnością (zscore przed regresją;
   dla zscore różnica powinna być niewielka, nie sprawdzone).
 
+### Zgodność z `summary_all.txt` (2026-10-16)
+Pełny bieg od zera (`results/final`) porównany z `docs/results.md`: różnice do 0,4 pp względem wcześniejszych tabel
+(np. główny kandydat MI 66,6 [64,2; 69,1] zamiast 66,7; EEGNet po strojeniu 66,4 zamiast 66,6; transformer CI [61,5; 66,3]).
+`legacy_eye_motor_regressed` przeliczony już z regresją przed normalizacją: 69,7 [67,6; 71,8] (wcześniej 69,3 przy
+starej kolejności), czyli różnica jest mała, co zamyka wątek "nie sprawdzone". Tabele w `docs/results.md` używają liczb z pełnego biegu.
+
 ### Porządek repo pod `main` (2026-10-16)
 README skrócone do wyników, protokołu i uruchamiania (po angielsku). Przeniesione bez zmian treści: stary opis pipelinu 4-way
 -> `docs/legacy_pipeline.md`, mapa kodu i znane problemy -> `docs/code_review_map.md`, lista zadań -> `docs/TODO.md`.
