@@ -39,6 +39,24 @@ make all                             # everything from scratch (GPU, several hou
 
 `scripts/run_all.sh` runs every experiment (phases: `mi mm legacy main replication tuned`), saves training curves, logs, environment and figures, and writes `results/final/REPORT.md`. Select phases with `PHASES="replication"`, point to local EDF files with `DATA_DIR=/path`. Finished models are reused, so an interrupted run can simply be restarted. Without `DATA_DIR`, data is downloaded with kagglehub.
 
+## The 4-way pipeline (`train.py`)
+
+The first version of the project, designed before the study above, and methodologically sound: subjects are split **before any preprocessing** into TRAIN 60% / VAL 20% / DEV 10% / HOLDOUT 10%. VAL selects the checkpoint (early stopping), DEV compares models and preprocessing, grid searches use GroupKFold on TRAIN+VAL subjects only, and the HOLDOUT is evaluated once at the end. There is no leakage between subjects. Its holdout result (84.3%, mean of 5 seeds) is the number that started the study, and it reproduced (83.5%) under the N-LNSO protocol. It was the right design for the question as it was then posed; what the study found is a property of the data (eye and gaze signal), not a flaw of the pipeline.
+
+N-LNSO keeps the same principles and changes one thing: instead of a single holdout of ~10 subjects (noisy), five rotating test folds of ~21 subjects, so every subject is tested once and the CIs are over all 106. A 4-way run with a larger holdout (e.g. 20 subjects) is a reasonable alternative when a single final number is wanted.
+
+Stages: single EEGNet run, EEGNet and ShallowConvNet grids, CSP + classical ML grid (LDA, SVM, RF, KNN, GB, LR, MLP), preprocessing grid (band, window, baseline), joint preprocessing x model grid, final retrain with the best configuration, one holdout evaluation. Grid searches write a CSV checkpoint and resume after a crash or `Ctrl+C`; the final retrain saves full learning curves.
+
+```bash
+python train.py                                                  # default config (configs/default.yaml)
+python train.py --config configs/full_binary_all_channels.yaml   # custom config
+python train_multiple_splits.py --config configs/full_binary_all_channels.yaml --runs 5   # repeated splits
+```
+
+Any field can be overridden with a partial YAML (`data.n_subjects`, `training.epochs`, ...). Usage from a notebook, the data flow, module mapping and a guide to adding a model, a preprocessing step or a stage: [`docs/legacy_pipeline.md`](docs/legacy_pipeline.md).
+
+Known issues of this pipeline (details in [`docs/code_review_map.md`](docs/code_review_map.md)): the grid-search loops had an indentation bug introduced during the March refactoring, fixed and covered by tests; the CV score in the grids is the best accuracy over epochs on the evaluated fold, so Dev accuracy is optimistic (the holdout is not affected); it was not re-run end to end after the refactoring.
+
 ## Repository layout
 
 ```
@@ -51,7 +69,7 @@ scripts/          run_all.sh, benchmarks, figures, reports
 configs/          one YAML per experiment
 tests/            102 tests, incl. end-to-end on synthetic EDF files
 docs/             lab notebook, research plan, protocol, related work
-train.py ...      the earlier 4-way pipeline (see docs/legacy_pipeline.md)
+train.py ...      the 4-way pipeline (see above and docs/legacy_pipeline.md)
 notebooks/        exploratory notebooks (see notebooks/README.md)
 ```
 
@@ -69,7 +87,7 @@ notebooks/        exploratory notebooks (see notebooks/README.md)
 
 * EEGMMIDB has no EOG channel and no fixation instruction, so the eye explanation of the old 84% cannot be separated from slow motor potentials below 4 Hz on this data. A dedicated protocol (central cue, fixation, recorded EOG) is the planned next step.
 * Own BrainAccess recordings are too short (one subject, minutes) for any conclusion; the BrainAccess code is prepared for larger data and untested on real recordings.
-* `train.py` was not re-run end to end after the refactoring; its results are not used in the study.
+* `train.py` was not re-run end to end after the refactoring; the numbers in this README come from `src/eval/` (N-LNSO), apart from its original 84.3% holdout result.
 
 ## License
 

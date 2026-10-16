@@ -53,7 +53,6 @@ poetry install
 pip install -r requirements.txt
 
 # Train with default config
-# Wyniki w docs/lab_notebook.md pochodza z src/eval/, nie z train.py (patrz tam: znane bledy train.py).
 python train.py
 
 # Train with custom config
